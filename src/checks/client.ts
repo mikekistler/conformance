@@ -24,11 +24,11 @@ export function createServerInfoCheck(serverInfo: {
 }
 
 // Valid MCP protocol versions
-const VALID_PROTOCOL_VERSIONS = ['2025-06-18', '2025-11-25'];
+const VALID_PROTOCOL_VERSIONS = ['2025-06-18', '2025-11-25', 'draft'];
 
 export function createClientInitializationCheck(
   initializeRequest: any,
-  expectedSpecVersion: string = '2025-11-25'
+  expectedSpecVersion: string = 'draft'
 ): ConformanceCheck {
   const protocolVersionSent = initializeRequest?.protocolVersion;
 

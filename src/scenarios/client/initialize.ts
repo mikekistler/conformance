@@ -9,7 +9,7 @@ import { clientChecks } from '../../checks/index';
 
 export class InitializeScenario implements Scenario {
   name = 'initialize';
-  specVersions: SpecVersion[] = ['2025-06-18', '2025-11-25'];
+  specVersions: SpecVersion[] = ['2025-06-18', '2025-11-25', 'draft'];
   description = 'Tests MCP client initialization handshake';
 
   private server: http.Server | null = null;
@@ -117,11 +117,11 @@ export class InitializeScenario implements Scenario {
     this.checks.push(clientChecks.createServerInfoCheck(serverInfo));
 
     // Echo back client's version if valid, otherwise use latest
-    const VALID_VERSIONS = ['2025-06-18', '2025-11-25'];
+    const VALID_VERSIONS = ['2025-06-18', '2025-11-25', 'draft'];
     const clientVersion = initializeRequest?.protocolVersion;
     const responseVersion = VALID_VERSIONS.includes(clientVersion)
       ? clientVersion
-      : '2025-11-25';
+      : 'draft';
 
     const response = {
       jsonrpc: '2.0',
