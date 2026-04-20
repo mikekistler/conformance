@@ -83,31 +83,23 @@ function createRejectionCheck(
   details: Record<string, unknown>
 ): ConformanceCheck {
   const errors: string[] = [];
-  const warnings: string[] = [];
   if (response.status !== 400) {
     errors.push(
       `Expected HTTP 400, got ${response.status}. Server MUST reject with 400 Bad Request.`
     );
   }
-  // Error code -32001 is a SHOULD requirement, so mismatch is a warning
-  if (
-    response.body?.error?.code !== undefined &&
-    response.body.error.code !== HEADER_MISMATCH_ERROR_CODE
-  ) {
-    warnings.push(
-      `Expected JSON-RPC error code ${HEADER_MISMATCH_ERROR_CODE} (HeaderMismatch), got ${response.body.error.code}. Server SHOULD use code -32001.`
+  if (response.body?.error?.code !== HEADER_MISMATCH_ERROR_CODE) {
+    errors.push(
+      `Expected JSON-RPC error code ${HEADER_MISMATCH_ERROR_CODE} (HeaderMismatch), got ${response.body?.error?.code ?? '(missing)'}. Server MUST use code -32001.`
     );
   }
-  const status =
-    errors.length > 0 ? 'FAILURE' : warnings.length > 0 ? 'WARNING' : 'SUCCESS';
-  const messages = [...errors, ...warnings];
   return {
     id,
     name,
     description,
-    status,
+    status: errors.length > 0 ? 'FAILURE' : 'SUCCESS',
     timestamp: new Date().toISOString(),
-    errorMessage: messages.length > 0 ? messages.join('; ') : undefined,
+    errorMessage: errors.length > 0 ? errors.join('; ') : undefined,
     specReferences: [specRef],
     details: {
       ...details,
@@ -163,7 +155,7 @@ export class HttpHeaderValidationScenario implements ClientScenario {
 - Server MUST reject case-mismatched header values (method values are case-sensitive)
 - Server MUST accept extra whitespace around header values (per HTTP spec)
 - Server MUST return HTTP 400 Bad Request for validation failures
-- Server SHOULD return JSON-RPC error with code -32001 (HeaderMismatch)`;
+- Server MUST return JSON-RPC error with code -32001 (HeaderMismatch)`;
 
   async run(serverUrl: string): Promise<ConformanceCheck[]> {
     const checks: ConformanceCheck[] = [];

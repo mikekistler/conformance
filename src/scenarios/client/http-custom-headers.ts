@@ -556,17 +556,18 @@ export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
     ];
 
     for (const toolName of invalidTools) {
-      if (this.calledTools.has(toolName)) {
-        this.checks.push({
-          id: `client-rejects-invalid-tool-${toolName}`,
-          name: `ClientRejectsInvalidTool_${toolName}`,
-          description: `Client MUST NOT call tool '${toolName}' with invalid x-mcp-header`,
-          status: 'FAILURE',
-          timestamp: new Date().toISOString(),
-          errorMessage: `Client called '${toolName}' which has an invalid x-mcp-header. Clients MUST reject (exclude) such tools.`,
-          specReferences: [SPEC_REFERENCE_TOOL_DEF]
-        });
-      }
+      const called = this.calledTools.has(toolName);
+      this.checks.push({
+        id: `client-rejects-invalid-tool-${toolName}`,
+        name: `ClientRejectsInvalidTool_${toolName}`,
+        description: `Client MUST NOT call tool '${toolName}' with invalid x-mcp-header`,
+        status: called ? 'FAILURE' : 'SUCCESS',
+        timestamp: new Date().toISOString(),
+        errorMessage: called
+          ? `Client called '${toolName}' which has an invalid x-mcp-header. Clients MUST reject (exclude) such tools.`
+          : undefined,
+        specReferences: [SPEC_REFERENCE_TOOL_DEF]
+      });
     }
 
     return this.checks;

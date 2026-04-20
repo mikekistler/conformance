@@ -1,0 +1,77 @@
+sep: 2243
+spec_url: https://modelcontextprotocol.io/specification/draft/basic/transports
+requirements:
+  - text: 'HTTP POST requests MUST include the Mcp-Method header mirrored from the JSON-RPC method for all requests and notifications.'
+    check: client-mcp-method-header-initialize
+  - text: 'tools/call requests MUST include the Mcp-Name header mirrored from params.name.'
+    check: client-mcp-name-header-tools-call
+  - text: 'resources/read requests MUST include the Mcp-Name header mirrored from params.uri.'
+    check: client-mcp-name-header-resources-read
+  - text: 'prompts/get requests MUST include the Mcp-Name header mirrored from params.name.'
+    check: client-mcp-name-header-prompts-get
+  - text: 'Servers that process the request body MUST reject requests where Mcp-Method does not match the value in the request body.'
+    check: server-rejects-mismatched-method-header
+  - text: 'Servers that process the request body MUST reject requests where Mcp-Name does not match the value in the request body.'
+    check: server-rejects-mismatched-name-header
+  - text: 'Clients and servers MUST use case-insensitive comparisons for header names.'
+    check: server-accepts-lowercase-header-name
+  - text: 'Header names MUST remain case-insensitive even when sent in mixed or uppercase form.'
+    check: server-accepts-uppercase-header-name
+  - text: 'Method header values remain case-sensitive, so mismatched casing MUST be rejected.'
+    check: server-rejects-case-mismatch-value
+  - text: 'Servers MUST accept extra whitespace around header values and compare the trimmed value to the request body.'
+    check: server-accepts-whitespace-header-value
+  - text: 'Clients MUST support x-mcp-header annotations and mirror designated tool parameter values into HTTP headers.'
+    check: client-custom-header-region
+  - text: 'x-mcp-header values MUST NOT be empty.'
+    check: client-rejects-invalid-tool-invalid_empty_header
+  - text: 'Duplicate x-mcp-header values with the same spelling MUST be rejected.'
+    check: client-rejects-invalid-tool-invalid_duplicate_same_case
+  - text: 'x-mcp-header values MUST be case-insensitively unique within a tool inputSchema.'
+    check: client-rejects-invalid-tool-invalid_duplicate_diff_case
+  - text: 'x-mcp-header values MUST only be applied to primitive string, number, or boolean parameters.'
+    check: client-rejects-invalid-tool-invalid_object_header
+  - text: 'x-mcp-header annotations on array parameters MUST be rejected.'
+    check: client-rejects-invalid-tool-invalid_array_header
+  - text: 'x-mcp-header annotations on null parameters MUST be rejected.'
+    check: client-rejects-invalid-tool-invalid_null_header
+  - text: 'x-mcp-header annotations nested inside object properties MUST be rejected.'
+    check: client-rejects-invalid-tool-invalid_nested_header
+  - text: 'Clients MUST reject tool definitions whose x-mcp-header values contain spaces.'
+    check: client-rejects-invalid-tool-invalid_space_in_name
+  - text: 'Clients MUST reject tool definitions whose x-mcp-header values contain colons.'
+    check: client-rejects-invalid-tool-invalid_colon_in_name
+  - text: 'Clients MUST reject tool definitions whose x-mcp-header values contain non-ASCII characters.'
+    check: client-rejects-invalid-tool-invalid_non_ascii_name
+  - text: 'Clients MUST reject tool definitions whose x-mcp-header values contain control characters.'
+    check: client-rejects-invalid-tool-invalid_control_char_name
+  - text: 'Clients MUST exclude invalid tools from tools/list results.'
+    check: client-rejects-invalid-tool-invalid_empty_header
+  - text: 'Clients MUST convert numeric parameter values to decimal strings before mirroring them into Mcp-Param headers.'
+    check: client-custom-header-priority
+  - text: 'Clients MUST convert boolean parameter values to lowercase true/false before mirroring them into Mcp-Param headers.'
+    check: client-custom-header-verbose
+  - text: 'If an x-mcp-header parameter value is provided, the client MUST include the corresponding Mcp-Param header.'
+    check: client-custom-header-optional-present
+  - text: 'If an x-mcp-header parameter value is null or omitted, the client MUST omit the corresponding Mcp-Param header.'
+    check: client-custom-header-omit-null
+  - text: 'When a value cannot be safely represented as a plain ASCII header value, clients MUST use the =?base64?...?= wrapper.'
+    check: server-accepts-valid-base64
+  - text: 'Servers that inspect Base64-encoded Mcp-Param values MUST decode them before comparing them with the request body.'
+    check: server-accepts-valid-base64
+  - text: 'Servers MUST reject requests with invalid Base64 padding in Mcp-Param values.'
+    check: server-rejects-invalid-base64-padding
+  - text: 'Servers MUST reject requests with invalid Base64 characters in Mcp-Param values.'
+    check: server-rejects-invalid-base64-chars
+  - text: 'Servers MUST accept case-insensitive =?base64? wrappers.'
+    check: server-accepts-case-insensitive-base64
+  - text: 'Servers MUST return HTTP 400 Bad Request when required standard headers are missing.'
+    check: server-rejects-missing-method-header
+  - text: 'Servers MUST reject requests where Mcp-Name is omitted but the corresponding body value is present.'
+    check: server-rejects-missing-name-header
+  - text: 'Servers MUST reject requests where a required custom header is omitted but the corresponding body value is present.'
+    check: server-rejects-missing-custom-header
+  - text: 'When rejecting a request due to header validation failure, servers MUST return JSON-RPC error code -32001 (HeaderMismatch).'
+    check: server-rejects-mismatched-method-header
+  - text: 'Intermediaries MUST return an appropriate HTTP error status for validation failures.'
+    excluded: 'Applies to network intermediaries rather than the MCP client or server implementation under test.'
