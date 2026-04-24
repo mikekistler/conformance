@@ -1,4 +1,9 @@
-import { ConformanceCheck, CheckStatus } from '../types';
+import {
+  ConformanceCheck,
+  CheckStatus,
+  LATEST_SPEC_VERSION,
+  DRAFT_PROTOCOL_VERSION
+} from '../types';
 
 export function createServerInfoCheck(serverInfo: {
   name: string;
@@ -23,12 +28,16 @@ export function createServerInfoCheck(serverInfo: {
   };
 }
 
-// Valid MCP protocol versions
-const VALID_PROTOCOL_VERSIONS = ['2025-06-18', '2025-11-25'];
+// Protocol versions the mock server will accept on initialize.
+const VALID_PROTOCOL_VERSIONS = [
+  '2025-06-18',
+  LATEST_SPEC_VERSION,
+  DRAFT_PROTOCOL_VERSION
+];
 
 export function createClientInitializationCheck(
   initializeRequest: any,
-  expectedSpecVersion: string = '2025-11-25'
+  expectedSpecVersion: string = LATEST_SPEC_VERSION
 ): ConformanceCheck {
   const protocolVersionSent = initializeRequest?.protocolVersion;
 

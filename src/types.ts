@@ -23,12 +23,34 @@ export interface ConformanceCheck {
   logs?: string[];
 }
 
-export type SpecVersion =
-  | '2025-03-26'
-  | '2025-06-18'
-  | '2025-11-25'
-  | 'draft'
-  | 'extension';
+export const DATED_SPEC_VERSIONS = [
+  '2025-03-26',
+  '2025-06-18',
+  '2025-11-25'
+] as const;
+
+export type DatedSpecVersion = (typeof DATED_SPEC_VERSIONS)[number];
+
+export const LATEST_SPEC_VERSION: DatedSpecVersion = '2025-11-25';
+
+// Mirrors LATEST_PROTOCOL_VERSION in the spec repo's schema/draft/schema.ts.
+// Bump when that constant changes.
+export const DRAFT_PROTOCOL_VERSION = 'DRAFT-2026-v1';
+
+export type SpecVersion = DatedSpecVersion | 'draft' | 'extension';
+
+export function specVersionToProtocolVersion(
+  version: SpecVersion
+): string | undefined {
+  if (version === 'draft') return DRAFT_PROTOCOL_VERSION;
+  // TODO(#253 follow-up): 'extension' isn't a spec version — it's a scenario
+  // category that got lumped into SpecVersion so `--spec-version extension`
+  // could reuse the filter plumbing. It has no corresponding wire
+  // protocolVersion. Split it out of this type when moving to
+  // introducedIn/removedIn tagging.
+  if (version === 'extension') return undefined;
+  return version;
+}
 
 export interface ScenarioUrls {
   serverUrl: string;

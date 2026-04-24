@@ -2,7 +2,9 @@ import {
   Scenario,
   ClientScenario,
   ClientScenarioForAuthorizationServer,
-  SpecVersion
+  SpecVersion,
+  DATED_SPEC_VERSIONS,
+  LATEST_SPEC_VERSION
 } from '../types';
 import { InitializeScenario } from './client/initialize';
 import { ToolsCallScenario } from './client/tools_call';
@@ -257,9 +259,7 @@ export { listMetadataScenarios };
 
 // All valid spec versions, used by the CLI to validate --spec-version input.
 export const ALL_SPEC_VERSIONS: SpecVersion[] = [
-  '2025-03-26',
-  '2025-06-18',
-  '2025-11-25',
+  ...DATED_SPEC_VERSIONS,
   'draft',
   'extension'
 ];
@@ -273,15 +273,31 @@ export function resolveSpecVersion(value: string): SpecVersion {
   process.exit(1);
 }
 
+// `draft` selects everything in the latest dated release plus scenarios tagged
+// draft-only, so SEP authors can run the full suite against an SDK tracking the
+// in-progress spec without retagging core scenarios.
+function matchesSpecVersion(
+  scenario: { specVersions: SpecVersion[] },
+  version: SpecVersion
+): boolean {
+  if (version === 'draft') {
+    return (
+      scenario.specVersions.includes('draft') ||
+      scenario.specVersions.includes(LATEST_SPEC_VERSION)
+    );
+  }
+  return scenario.specVersions.includes(version);
+}
+
 export function listScenariosForSpec(version: SpecVersion): string[] {
   return scenariosList
-    .filter((s) => s.specVersions.includes(version))
+    .filter((s) => matchesSpecVersion(s, version))
     .map((s) => s.name);
 }
 
 export function listClientScenariosForSpec(version: SpecVersion): string[] {
   return allClientScenariosList
-    .filter((s) => s.specVersions.includes(version))
+    .filter((s) => matchesSpecVersion(s, version))
     .map((s) => s.name);
 }
 
@@ -289,7 +305,7 @@ export function listClientScenariosForAuthorizationServerForSpec(
   version: SpecVersion
 ): string[] {
   return allClientScenariosListForAuthorizationServer
-    .filter((s) => s.specVersions.includes(version))
+    .filter((s) => matchesSpecVersion(s, version))
     .map((s) => s.name);
 }
 

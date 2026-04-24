@@ -152,7 +152,8 @@ program
                 options.command,
                 scenarioName,
                 timeout,
-                outputDir
+                outputDir,
+                specVersionFilter
               );
               return {
                 scenario: scenarioName,
@@ -259,7 +260,8 @@ program
         validated.command,
         validated.scenario,
         timeout,
-        outputDir
+        outputDir,
+        specVersionFilter
       );
 
       const { overallFailure } = printClientResults(

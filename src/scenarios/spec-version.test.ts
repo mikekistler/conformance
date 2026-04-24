@@ -3,9 +3,16 @@ import {
   listScenarios,
   listClientScenarios,
   listScenariosForSpec,
+  listDraftScenarios,
   getScenarioSpecVersions,
   ALL_SPEC_VERSIONS
 } from './index';
+import {
+  DATED_SPEC_VERSIONS,
+  DRAFT_PROTOCOL_VERSION,
+  LATEST_SPEC_VERSION,
+  specVersionToProtocolVersion
+} from '../types';
 
 describe('specVersions helpers', () => {
   it('every Scenario has specVersions', () => {
@@ -69,26 +76,41 @@ describe('specVersions helpers', () => {
     }
   });
 
-  it('draft and extension scenarios are isolated', () => {
-    const draft = listScenariosForSpec('draft');
-    for (const name of draft) {
-      expect(getScenarioSpecVersions(name)).toContain('draft');
+  it('--spec-version draft is a superset of the latest dated release', () => {
+    const latest = new Set(listScenariosForSpec(LATEST_SPEC_VERSION));
+    const draft = new Set(listScenariosForSpec('draft'));
+    for (const name of latest) {
+      expect(draft.has(name)).toBe(true);
     }
-    const ext = listScenariosForSpec('extension');
-    for (const name of ext) {
-      expect(getScenarioSpecVersions(name)).toContain('extension');
+    for (const name of listDraftScenarios()) {
+      expect(draft.has(name)).toBe(true);
     }
   });
 
-  it('draft scenarios are not in dated versions', () => {
-    const draft = listScenariosForSpec('draft');
-    const dated = new Set([
-      ...listScenariosForSpec('2025-03-26'),
-      ...listScenariosForSpec('2025-06-18'),
-      ...listScenariosForSpec('2025-11-25')
-    ]);
-    for (const name of draft) {
-      expect(dated.has(name)).toBe(false);
+  it('draft-tagged scenarios are not also tagged with a dated version', () => {
+    for (const name of listDraftScenarios()) {
+      const versions = getScenarioSpecVersions(name)!;
+      for (const dated of DATED_SPEC_VERSIONS) {
+        expect(
+          versions,
+          `scenario "${name}" is tagged with both 'draft' and '${dated}'`
+        ).not.toContain(dated);
+      }
+    }
+  });
+
+  it('specVersionToProtocolVersion maps tags to wire versions', () => {
+    expect(specVersionToProtocolVersion('draft')).toBe(DRAFT_PROTOCOL_VERSION);
+    expect(specVersionToProtocolVersion(LATEST_SPEC_VERSION)).toBe(
+      LATEST_SPEC_VERSION
+    );
+    expect(specVersionToProtocolVersion('extension')).toBeUndefined();
+  });
+
+  it('extension scenarios are isolated', () => {
+    const ext = listScenariosForSpec('extension');
+    for (const name of ext) {
+      expect(getScenarioSpecVersions(name)).toContain('extension');
     }
   });
 });

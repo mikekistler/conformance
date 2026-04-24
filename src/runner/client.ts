@@ -1,7 +1,11 @@
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { ConformanceCheck } from '../types';
+import {
+  ConformanceCheck,
+  SpecVersion,
+  specVersionToProtocolVersion
+} from '../types';
 import { getScenario } from '../scenarios';
 import { createResultDir, formatPrettyChecks } from './utils';
 
@@ -17,7 +21,8 @@ async function executeClient(
   scenarioName: string,
   serverUrl: string,
   timeout: number = 30000,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
+  specVersion?: SpecVersion
 ): Promise<ClientExecutionResult> {
   const commandParts = command.split(' ');
   const executable = commandParts[0];
@@ -34,6 +39,12 @@ async function executeClient(
   // 3. Semantic separation: scenario identifies "which test", context provides "test data"
   const env = { ...process.env };
   env.MCP_CONFORMANCE_SCENARIO = scenarioName;
+  const protocolVersion = specVersion
+    ? specVersionToProtocolVersion(specVersion)
+    : undefined;
+  if (protocolVersion) {
+    env.MCP_CONFORMANCE_PROTOCOL_VERSION = protocolVersion;
+  }
   if (context) {
     // Include scenario name in context for discriminated union parsing
     env.MCP_CONFORMANCE_CONTEXT = JSON.stringify({
@@ -92,7 +103,8 @@ export async function runConformanceTest(
   clientCommand: string,
   scenarioName: string,
   timeout: number = 30000,
-  outputDir?: string
+  outputDir?: string,
+  specVersion?: SpecVersion
 ): Promise<{
   checks: ConformanceCheck[];
   clientOutput: ClientExecutionResult;
@@ -123,7 +135,8 @@ export async function runConformanceTest(
       scenarioName,
       urls.serverUrl,
       timeout,
-      urls.context
+      urls.context,
+      specVersion
     );
 
     // Print stdout/stderr if client exited with nonzero code
