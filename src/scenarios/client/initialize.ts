@@ -5,7 +5,7 @@ import {
   ConformanceCheck,
   SpecVersion,
   LATEST_SPEC_VERSION,
-  DRAFT_PROTOCOL_VERSION
+  NEGOTIABLE_PROTOCOL_VERSIONS
 } from '../../types';
 import { clientChecks } from '../../checks/index';
 
@@ -119,13 +119,8 @@ export class InitializeScenario implements Scenario {
     this.checks.push(clientChecks.createServerInfoCheck(serverInfo));
 
     // Echo back client's version if valid, otherwise use latest
-    const VALID_VERSIONS = [
-      '2025-06-18',
-      LATEST_SPEC_VERSION,
-      DRAFT_PROTOCOL_VERSION
-    ];
     const clientVersion = initializeRequest?.protocolVersion;
-    const responseVersion = VALID_VERSIONS.includes(clientVersion)
+    const responseVersion = NEGOTIABLE_PROTOCOL_VERSIONS.includes(clientVersion)
       ? clientVersion
       : LATEST_SPEC_VERSION;
 

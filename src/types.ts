@@ -33,24 +33,30 @@ export type DatedSpecVersion = (typeof DATED_SPEC_VERSIONS)[number];
 
 export const LATEST_SPEC_VERSION: DatedSpecVersion = '2025-11-25';
 
-// Mirrors LATEST_PROTOCOL_VERSION in the spec repo's schema/draft/schema.ts.
-// Bump when that constant changes.
+/**
+ * Wire `protocolVersion` for the in-progress spec. Mirrors
+ * `LATEST_PROTOCOL_VERSION` in the spec repo's `schema/draft/schema.ts`;
+ * bump when that constant changes.
+ */
 export const DRAFT_PROTOCOL_VERSION = 'DRAFT-2026-v1';
 
-export type SpecVersion = DatedSpecVersion | 'draft' | 'extension';
+// Wire protocolVersion strings the mock server will negotiate on initialize.
+export const NEGOTIABLE_PROTOCOL_VERSIONS: readonly string[] = [
+  '2025-06-18',
+  LATEST_SPEC_VERSION,
+  DRAFT_PROTOCOL_VERSION
+];
 
-export function specVersionToProtocolVersion(
-  version: SpecVersion
-): string | undefined {
-  if (version === 'draft') return DRAFT_PROTOCOL_VERSION;
-  // TODO(#253 follow-up): 'extension' isn't a spec version — it's a scenario
-  // category that got lumped into SpecVersion so `--spec-version extension`
-  // could reuse the filter plumbing. It has no corresponding wire
-  // protocolVersion. Split it out of this type when moving to
-  // introducedIn/removedIn tagging.
-  if (version === 'extension') return undefined;
-  return version;
-}
+/**
+ * A spec revision the conformance suite can target via `--spec-version`.
+ * Always a wire `protocolVersion` string. The CLI also accepts `'draft'` as
+ * an alias for {@link DRAFT_PROTOCOL_VERSION}.
+ */
+export type SpecVersion = DatedSpecVersion | typeof DRAFT_PROTOCOL_VERSION;
+
+// Scenarios may also be tagged 'extension' to mark them as off-timeline
+// (selectable via --suite extensions, never via --spec-version). See #256.
+export type ScenarioSpecTag = SpecVersion | 'extension';
 
 export interface ScenarioUrls {
   serverUrl: string;
@@ -65,7 +71,7 @@ export interface ScenarioUrls {
 export interface Scenario {
   name: string;
   description: string;
-  specVersions: SpecVersion[];
+  specVersions: ScenarioSpecTag[];
   /**
    * If true, a non-zero client exit code is expected and will not cause the test to fail.
    * Use this for scenarios where the client is expected to error (e.g., rejecting invalid auth).
@@ -79,13 +85,13 @@ export interface Scenario {
 export interface ClientScenario {
   name: string;
   description: string;
-  specVersions: SpecVersion[];
+  specVersions: ScenarioSpecTag[];
   run(serverUrl: string): Promise<ConformanceCheck[]>;
 }
 
 export interface ClientScenarioForAuthorizationServer {
   name: string;
   description: string;
-  specVersions: SpecVersion[];
+  specVersions: ScenarioSpecTag[];
   run(serverUrl: string): Promise<ConformanceCheck[]>;
 }

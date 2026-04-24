@@ -3,7 +3,9 @@ import {
   ClientScenario,
   ClientScenarioForAuthorizationServer,
   SpecVersion,
+  ScenarioSpecTag,
   DATED_SPEC_VERSIONS,
+  DRAFT_PROTOCOL_VERSION,
   LATEST_SPEC_VERSION
 } from '../types';
 import { InitializeScenario } from './client/initialize';
@@ -258,31 +260,35 @@ export function listDraftScenarios(): string[] {
 export { listMetadataScenarios };
 
 // All valid spec versions, used by the CLI to validate --spec-version input.
+// 'extension' is intentionally excluded — extension scenarios are off-timeline
+// and selected via `--suite extensions`, not `--spec-version`.
 export const ALL_SPEC_VERSIONS: SpecVersion[] = [
   ...DATED_SPEC_VERSIONS,
-  'draft',
-  'extension'
+  DRAFT_PROTOCOL_VERSION
 ];
 
 export function resolveSpecVersion(value: string): SpecVersion {
+  if (value === 'draft') return DRAFT_PROTOCOL_VERSION;
   if (ALL_SPEC_VERSIONS.includes(value as SpecVersion)) {
     return value as SpecVersion;
   }
   console.error(`Unknown spec version: ${value}`);
-  console.error(`Valid versions: ${ALL_SPEC_VERSIONS.join(', ')}`);
+  console.error(
+    `Valid versions: ${ALL_SPEC_VERSIONS.join(', ')} (or 'draft' as an alias for ${DRAFT_PROTOCOL_VERSION})`
+  );
   process.exit(1);
 }
 
-// `draft` selects everything in the latest dated release plus scenarios tagged
-// draft-only, so SEP authors can run the full suite against an SDK tracking the
-// in-progress spec without retagging core scenarios.
+// The draft version selects everything in the latest dated release plus
+// scenarios tagged draft-only, so SEP authors can run the full suite against an
+// SDK tracking the in-progress spec without retagging core scenarios.
 function matchesSpecVersion(
-  scenario: { specVersions: SpecVersion[] },
+  scenario: { specVersions: ScenarioSpecTag[] },
   version: SpecVersion
 ): boolean {
-  if (version === 'draft') {
+  if (version === DRAFT_PROTOCOL_VERSION) {
     return (
-      scenario.specVersions.includes('draft') ||
+      scenario.specVersions.includes(DRAFT_PROTOCOL_VERSION) ||
       scenario.specVersions.includes(LATEST_SPEC_VERSION)
     );
   }
@@ -311,7 +317,7 @@ export function listClientScenariosForAuthorizationServerForSpec(
 
 export function getScenarioSpecVersions(
   name: string
-): SpecVersion[] | undefined {
+): ScenarioSpecTag[] | undefined {
   return (
     scenarios.get(name)?.specVersions ??
     clientScenarios.get(name)?.specVersions ??
@@ -319,4 +325,4 @@ export function getScenarioSpecVersions(
   );
 }
 
-export type { SpecVersion };
+export type { SpecVersion, ScenarioSpecTag };

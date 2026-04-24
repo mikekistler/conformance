@@ -5,7 +5,7 @@ import type {
   Scenario,
   ConformanceCheck,
   ScenarioUrls,
-  SpecVersion
+  ScenarioSpecTag
 } from '../../../types';
 import { createAuthServer } from './helpers/createAuthServer';
 import { createServer } from './helpers/createServer';
@@ -60,7 +60,7 @@ async function createIdpIdToken(
  */
 export class CrossAppAccessCompleteFlowScenario implements Scenario {
   name = 'auth/cross-app-access-complete-flow';
-  specVersions: SpecVersion[] = ['extension'];
+  specVersions: ScenarioSpecTag[] = ['extension'];
   description =
     'Tests complete SEP-990 flow: token exchange + JWT bearer grant (Enterprise Managed OAuth)';
 

@@ -1,4 +1,5 @@
 import { TierScorecard, CheckStatus, ConformanceResult } from './types';
+import { DATED_SPEC_VERSIONS, DRAFT_PROTOCOL_VERSION } from '../types';
 
 const COLORS = {
   RESET: '\x1b[0m',
@@ -23,9 +24,9 @@ function statusIcon(status: CheckStatus): string {
   }
 }
 
-const TIER_SPEC_VERSIONS = ['2025-03-26', '2025-06-18', '2025-11-25'] as const;
+const TIER_SPEC_VERSIONS = DATED_SPEC_VERSIONS;
 
-const INFO_SPEC_VERSIONS = ['draft', 'extension'] as const;
+const INFO_SPEC_VERSIONS = [DRAFT_PROTOCOL_VERSION, 'extension'] as const;
 
 type Cell = { passed: number; total: number };
 

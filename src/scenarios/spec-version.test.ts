@@ -4,15 +4,22 @@ import {
   listClientScenarios,
   listScenariosForSpec,
   listDraftScenarios,
+  listExtensionScenarios,
   getScenarioSpecVersions,
+  resolveSpecVersion,
   ALL_SPEC_VERSIONS
 } from './index';
 import {
   DATED_SPEC_VERSIONS,
   DRAFT_PROTOCOL_VERSION,
   LATEST_SPEC_VERSION,
-  specVersionToProtocolVersion
+  ScenarioSpecTag
 } from '../types';
+
+const ALL_SCENARIO_SPEC_TAGS: ScenarioSpecTag[] = [
+  ...ALL_SPEC_VERSIONS,
+  'extension'
+];
 
 describe('specVersions helpers', () => {
   it('every Scenario has specVersions', () => {
@@ -24,7 +31,7 @@ describe('specVersions helpers', () => {
       ).toBeDefined();
       expect(versions!.length).toBeGreaterThan(0);
       for (const v of versions!) {
-        expect(ALL_SPEC_VERSIONS).toContain(v);
+        expect(ALL_SCENARIO_SPEC_TAGS).toContain(v);
       }
     }
   });
@@ -38,7 +45,7 @@ describe('specVersions helpers', () => {
       ).toBeDefined();
       expect(versions!.length).toBeGreaterThan(0);
       for (const v of versions!) {
-        expect(ALL_SPEC_VERSIONS).toContain(v);
+        expect(ALL_SCENARIO_SPEC_TAGS).toContain(v);
       }
     }
   });
@@ -76,9 +83,9 @@ describe('specVersions helpers', () => {
     }
   });
 
-  it('--spec-version draft is a superset of the latest dated release', () => {
+  it('the draft spec version is a superset of the latest dated release', () => {
     const latest = new Set(listScenariosForSpec(LATEST_SPEC_VERSION));
-    const draft = new Set(listScenariosForSpec('draft'));
+    const draft = new Set(listScenariosForSpec(DRAFT_PROTOCOL_VERSION));
     for (const name of latest) {
       expect(draft.has(name)).toBe(true);
     }
@@ -93,24 +100,26 @@ describe('specVersions helpers', () => {
       for (const dated of DATED_SPEC_VERSIONS) {
         expect(
           versions,
-          `scenario "${name}" is tagged with both 'draft' and '${dated}'`
+          `scenario "${name}" is tagged with both DRAFT_PROTOCOL_VERSION and '${dated}'`
         ).not.toContain(dated);
       }
     }
   });
 
-  it('specVersionToProtocolVersion maps tags to wire versions', () => {
-    expect(specVersionToProtocolVersion('draft')).toBe(DRAFT_PROTOCOL_VERSION);
-    expect(specVersionToProtocolVersion(LATEST_SPEC_VERSION)).toBe(
-      LATEST_SPEC_VERSION
-    );
-    expect(specVersionToProtocolVersion('extension')).toBeUndefined();
+  it("resolveSpecVersion accepts 'draft' as an alias", () => {
+    expect(resolveSpecVersion('draft')).toBe(DRAFT_PROTOCOL_VERSION);
+    expect(resolveSpecVersion(LATEST_SPEC_VERSION)).toBe(LATEST_SPEC_VERSION);
   });
 
-  it('extension scenarios are isolated', () => {
-    const ext = listScenariosForSpec('extension');
-    for (const name of ext) {
-      expect(getScenarioSpecVersions(name)).toContain('extension');
+  it('extension-tagged scenarios are not selected by any --spec-version', () => {
+    for (const version of ALL_SPEC_VERSIONS) {
+      const selected = new Set(listScenariosForSpec(version));
+      for (const name of listExtensionScenarios()) {
+        expect(
+          selected.has(name),
+          `extension scenario "${name}" was selected by --spec-version ${version}`
+        ).toBe(false);
+      }
     }
   });
 });

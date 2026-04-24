@@ -1,11 +1,7 @@
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
-import {
-  ConformanceCheck,
-  SpecVersion,
-  specVersionToProtocolVersion
-} from '../types';
+import { ConformanceCheck, SpecVersion } from '../types';
 import { getScenario } from '../scenarios';
 import { createResultDir, formatPrettyChecks } from './utils';
 
@@ -39,11 +35,8 @@ async function executeClient(
   // 3. Semantic separation: scenario identifies "which test", context provides "test data"
   const env = { ...process.env };
   env.MCP_CONFORMANCE_SCENARIO = scenarioName;
-  const protocolVersion = specVersion
-    ? specVersionToProtocolVersion(specVersion)
-    : undefined;
-  if (protocolVersion) {
-    env.MCP_CONFORMANCE_PROTOCOL_VERSION = protocolVersion;
+  if (specVersion) {
+    env.MCP_CONFORMANCE_PROTOCOL_VERSION = specVersion;
   }
   if (context) {
     // Include scenario name in context for discriminated union parsing

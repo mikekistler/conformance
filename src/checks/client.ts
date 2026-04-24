@@ -2,7 +2,7 @@ import {
   ConformanceCheck,
   CheckStatus,
   LATEST_SPEC_VERSION,
-  DRAFT_PROTOCOL_VERSION
+  NEGOTIABLE_PROTOCOL_VERSIONS
 } from '../types';
 
 export function createServerInfoCheck(serverInfo: {
@@ -28,13 +28,6 @@ export function createServerInfoCheck(serverInfo: {
   };
 }
 
-// Protocol versions the mock server will accept on initialize.
-const VALID_PROTOCOL_VERSIONS = [
-  '2025-06-18',
-  LATEST_SPEC_VERSION,
-  DRAFT_PROTOCOL_VERSION
-];
-
 export function createClientInitializationCheck(
   initializeRequest: any,
   expectedSpecVersion: string = LATEST_SPEC_VERSION
@@ -42,9 +35,11 @@ export function createClientInitializationCheck(
   const protocolVersionSent = initializeRequest?.protocolVersion;
 
   // Accept known valid versions OR custom expected version (for backward compatibility)
-  const validVersions = VALID_PROTOCOL_VERSIONS.includes(expectedSpecVersion)
-    ? VALID_PROTOCOL_VERSIONS
-    : [...VALID_PROTOCOL_VERSIONS, expectedSpecVersion];
+  const validVersions = NEGOTIABLE_PROTOCOL_VERSIONS.includes(
+    expectedSpecVersion
+  )
+    ? NEGOTIABLE_PROTOCOL_VERSIONS
+    : [...NEGOTIABLE_PROTOCOL_VERSIONS, expectedSpecVersion];
   const versionMatch = validVersions.includes(protocolVersionSent);
 
   const errors: string[] = [];

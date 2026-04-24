@@ -64,12 +64,12 @@ npx @modelcontextprotocol/conformance client --command "<client-command>" --scen
 - `--command` - The command to run your MCP client (can include flags)
 - `--scenario` - The test scenario to run (e.g., "initialize")
 - `--suite` - Run a suite of tests in parallel (e.g., "auth")
-- `--spec-version <version>` - Filter scenarios by spec version (e.g., `2025-11-25`, `draft`). `draft` runs the latest dated release plus any draft-only scenarios
+- `--spec-version <version>` - Filter scenarios by spec version (e.g., `2025-11-25`, `DRAFT-2026-v1`; `draft` is accepted as an alias for the current draft identifier). The draft version selects the latest dated release plus any draft-only scenarios
 - `--expected-failures <path>` - Path to YAML baseline file of known failures (see [Expected Failures](#expected-failures))
 - `--timeout` - Timeout in milliseconds (default: 30000)
 - `--verbose` - Show verbose output
 
-The framework appends `<server-url>` as an argument to your command and sets the `MCP_CONFORMANCE_SCENARIO` environment variable to the scenario name. For scenarios that require additional context (e.g., client credentials), the `MCP_CONFORMANCE_CONTEXT` environment variable contains a JSON object with scenario-specific data. When `--spec-version` is passed, the corresponding wire protocol version is forwarded as `MCP_CONFORMANCE_PROTOCOL_VERSION` (e.g., `--spec-version draft` sets it to the current draft identifier such as `DRAFT-2026-v1`); example clients can use this value directly as their `protocolVersion`. SDKs that hard-code their protocol version can ignore it.
+The framework appends `<server-url>` as an argument to your command and sets the `MCP_CONFORMANCE_SCENARIO` environment variable to the scenario name. For scenarios that require additional context (e.g., client credentials), the `MCP_CONFORMANCE_CONTEXT` environment variable contains a JSON object with scenario-specific data. When `--spec-version` is passed, its resolved value is forwarded to the client process as `MCP_CONFORMANCE_PROTOCOL_VERSION`; example clients can use this value directly as their `protocolVersion`. SDKs that hard-code their protocol version can ignore it.
 
 ### Server Testing
 
