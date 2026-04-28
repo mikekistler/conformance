@@ -8,6 +8,7 @@ import { InitializeScenario } from './client/initialize';
 import { ToolsCallScenario } from './client/tools_call';
 import { ElicitationClientDefaultsScenario } from './client/elicitation-defaults';
 import { SSERetryScenario } from './client/sse-retry';
+import { VersionDowngradeScenario } from './client/version-downgrade';
 
 // Import all new server test scenarios
 import { ServerInitializeScenario } from './server/lifecycle';
@@ -172,6 +173,7 @@ export const clientScenariosForAuthorizationServer = new Map<
 // All client test scenarios (core + backcompat + extensions)
 const scenariosList: Scenario[] = [
   new InitializeScenario(),
+  new VersionDowngradeScenario(),
   new ToolsCallScenario(),
   new ElicitationClientDefaultsScenario(),
   new SSERetryScenario(),
@@ -184,6 +186,7 @@ const scenariosList: Scenario[] = [
 // Core scenarios (tier 1 requirements)
 const coreScenariosList: Scenario[] = [
   new InitializeScenario(),
+  new VersionDowngradeScenario(),
   new ToolsCallScenario(),
   new ElicitationClientDefaultsScenario(),
   new SSERetryScenario(),
