@@ -2,7 +2,11 @@ import {
   Scenario,
   ClientScenario,
   ClientScenarioForAuthorizationServer,
-  SpecVersion
+  SpecVersion,
+  ScenarioSpecTag,
+  DATED_SPEC_VERSIONS,
+  DRAFT_PROTOCOL_VERSION,
+  LATEST_SPEC_VERSION
 } from '../types';
 import { InitializeScenario } from './client/initialize';
 import { ToolsCallScenario } from './client/tools_call';
@@ -256,32 +260,50 @@ export function listDraftScenarios(): string[] {
 export { listMetadataScenarios };
 
 // All valid spec versions, used by the CLI to validate --spec-version input.
+// 'extension' is intentionally excluded — extension scenarios are off-timeline
+// and selected via `--suite extensions`, not `--spec-version`.
 export const ALL_SPEC_VERSIONS: SpecVersion[] = [
-  '2025-03-26',
-  '2025-06-18',
-  '2025-11-25',
-  'draft',
-  'extension'
+  ...DATED_SPEC_VERSIONS,
+  DRAFT_PROTOCOL_VERSION
 ];
 
 export function resolveSpecVersion(value: string): SpecVersion {
+  if (value === 'draft') return DRAFT_PROTOCOL_VERSION;
   if (ALL_SPEC_VERSIONS.includes(value as SpecVersion)) {
     return value as SpecVersion;
   }
   console.error(`Unknown spec version: ${value}`);
-  console.error(`Valid versions: ${ALL_SPEC_VERSIONS.join(', ')}`);
+  console.error(
+    `Valid versions: ${ALL_SPEC_VERSIONS.join(', ')} (or 'draft' as an alias for ${DRAFT_PROTOCOL_VERSION})`
+  );
   process.exit(1);
+}
+
+// The draft version selects everything in the latest dated release plus
+// scenarios tagged draft-only, so SEP authors can run the full suite against an
+// SDK tracking the in-progress spec without retagging core scenarios.
+function matchesSpecVersion(
+  scenario: { specVersions: ScenarioSpecTag[] },
+  version: SpecVersion
+): boolean {
+  if (version === DRAFT_PROTOCOL_VERSION) {
+    return (
+      scenario.specVersions.includes(DRAFT_PROTOCOL_VERSION) ||
+      scenario.specVersions.includes(LATEST_SPEC_VERSION)
+    );
+  }
+  return scenario.specVersions.includes(version);
 }
 
 export function listScenariosForSpec(version: SpecVersion): string[] {
   return scenariosList
-    .filter((s) => s.specVersions.includes(version))
+    .filter((s) => matchesSpecVersion(s, version))
     .map((s) => s.name);
 }
 
 export function listClientScenariosForSpec(version: SpecVersion): string[] {
   return allClientScenariosList
-    .filter((s) => s.specVersions.includes(version))
+    .filter((s) => matchesSpecVersion(s, version))
     .map((s) => s.name);
 }
 
@@ -289,13 +311,13 @@ export function listClientScenariosForAuthorizationServerForSpec(
   version: SpecVersion
 ): string[] {
   return allClientScenariosListForAuthorizationServer
-    .filter((s) => s.specVersions.includes(version))
+    .filter((s) => matchesSpecVersion(s, version))
     .map((s) => s.name);
 }
 
 export function getScenarioSpecVersions(
   name: string
-): SpecVersion[] | undefined {
+): ScenarioSpecTag[] | undefined {
   return (
     scenarios.get(name)?.specVersions ??
     clientScenarios.get(name)?.specVersions ??
@@ -303,4 +325,4 @@ export function getScenarioSpecVersions(
   );
 }
 
-export type { SpecVersion };
+export type { SpecVersion, ScenarioSpecTag };

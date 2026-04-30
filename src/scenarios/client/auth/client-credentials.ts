@@ -4,7 +4,7 @@ import type {
   Scenario,
   ConformanceCheck,
   ScenarioUrls,
-  SpecVersion
+  ScenarioSpecTag
 } from '../../../types';
 import { createAuthServer } from './helpers/createAuthServer';
 import { createServer } from './helpers/createServer';
@@ -37,7 +37,7 @@ async function generateTestKeypair(): Promise<{
  */
 export class ClientCredentialsJwtScenario implements Scenario {
   name = 'auth/client-credentials-jwt';
-  specVersions: SpecVersion[] = ['extension'];
+  specVersions: ScenarioSpecTag[] = ['extension'];
   description =
     'Tests OAuth client_credentials flow with private_key_jwt authentication (SEP-1046)';
 
@@ -256,7 +256,7 @@ export class ClientCredentialsJwtScenario implements Scenario {
  */
 export class ClientCredentialsBasicScenario implements Scenario {
   name = 'auth/client-credentials-basic';
-  specVersions: SpecVersion[] = ['extension'];
+  specVersions: ScenarioSpecTag[] = ['extension'];
   description =
     'Tests OAuth client_credentials flow with client_secret_basic authentication';
 

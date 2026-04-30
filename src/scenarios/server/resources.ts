@@ -2,7 +2,12 @@
  * Resources test scenarios for MCP servers
  */
 
-import { ClientScenario, ConformanceCheck, SpecVersion } from '../../types';
+import {
+  ClientScenario,
+  ConformanceCheck,
+  SpecVersion,
+  DRAFT_PROTOCOL_VERSION
+} from '../../types';
 import { connectToServer } from './client-helper';
 import {
   TextResourceContents,
@@ -438,7 +443,7 @@ Example request:
 
 export class ResourcesNotFoundErrorScenario implements ClientScenario {
   name = 'sep-2164-resource-not-found';
-  specVersions: SpecVersion[] = ['draft'];
+  specVersions: SpecVersion[] = [DRAFT_PROTOCOL_VERSION];
   description = `Test error handling for non-existent resources (SEP-2164).
 
 **Server Implementation Requirements:**
