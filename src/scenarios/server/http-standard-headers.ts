@@ -433,9 +433,7 @@ export class HttpHeaderValidationScenario implements ClientScenario {
   }
 }
 
-export class HttpCustomHeaderServerValidationScenario
-  implements ClientScenario
-{
+export class HttpCustomHeaderServerValidationScenario implements ClientScenario {
   name = 'http-custom-header-server-validation';
   specVersions: SpecVersion[] = ['DRAFT-2026-v1'];
   description = `Test server validation of custom Mcp-Param headers and Base64 encoding (SEP-2243).
