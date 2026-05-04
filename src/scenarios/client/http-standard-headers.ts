@@ -37,6 +37,8 @@ export class HttpStandardHeadersScenario implements Scenario {
 
   // Track which header checks have been recorded
   private methodHeaderChecks = new Map<string, boolean>();
+  // Track which Mcp-Name checks have been recorded
+  private nameHeaderChecks = new Map<string, boolean>();
 
   async start(): Promise<ScenarioUrls> {
     return new Promise((resolve, reject) => {
@@ -77,20 +79,47 @@ export class HttpStandardHeadersScenario implements Scenario {
   }
 
   getChecks(): ConformanceCheck[] {
-    // If no tools/call was received, add a failure
-    if (!this.methodHeaderChecks.has('tools/call')) {
-      this.checks.push({
-        id: 'client-mcp-method-header-tools-call',
-        name: 'ClientMcpMethodHeaderToolsCall',
-        description:
-          'Client sends Mcp-Method and Mcp-Name headers on tools/call request',
-        status: 'FAILURE',
-        timestamp: new Date().toISOString(),
-        errorMessage:
-          'Client did not send a tools/call request. Expected client to call the test_headers tool.',
-        specReferences: [SPEC_REFERENCE]
-      });
+    // Enforce that Mcp-Method was checked for all expected request types
+    const expectedMethods = [
+      'initialize',
+      'tools/list',
+      'tools/call',
+      'resources/list',
+      'resources/read',
+      'prompts/list',
+      'prompts/get'
+    ];
+
+    for (const method of expectedMethods) {
+      if (!this.methodHeaderChecks.has(method)) {
+        this.checks.push({
+          id: `client-mcp-method-header-${method.replace('/', '-')}`,
+          name: `ClientMcpMethodHeader_${method.replace('/', '_')}`,
+          description: `Client sends correct Mcp-Method header on ${method} request`,
+          status: 'FAILURE',
+          timestamp: new Date().toISOString(),
+          errorMessage: `Client did not send a ${method} request. Expected Mcp-Method header to be tested.`,
+          specReferences: [SPEC_REFERENCE]
+        });
+      }
     }
+
+    // Enforce that Mcp-Name was checked for methods that require it
+    const expectedNameMethods = ['tools/call', 'resources/read', 'prompts/get'];
+    for (const method of expectedNameMethods) {
+      if (!this.nameHeaderChecks.has(method)) {
+        this.checks.push({
+          id: `client-mcp-name-header-${method.replace('/', '-')}`,
+          name: `ClientMcpNameHeader_${method.replace('/', '_')}`,
+          description: `Client sends correct Mcp-Name header on ${method} request`,
+          status: 'FAILURE',
+          timestamp: new Date().toISOString(),
+          errorMessage: `Client did not send a ${method} request. Expected Mcp-Name header to be tested.`,
+          specReferences: [SPEC_REFERENCE]
+        });
+      }
+    }
+
     return this.checks;
   }
 
@@ -151,8 +180,7 @@ export class HttpStandardHeadersScenario implements Scenario {
           this.checkMcpNameHeader(req, request, 'params.name');
           this.handlePromptsGet(res, request);
         } else if (request.id === undefined) {
-          // Notifications - return 202
-          this.checkMcpMethodHeader(req, request);
+          // Notifications - return 202 (Mcp-Method already checked above)
           res.writeHead(202);
           res.end();
         } else {
@@ -244,6 +272,8 @@ export class HttpStandardHeadersScenario implements Scenario {
       );
     }
 
+    this.nameHeaderChecks.set(method, errors.length === 0);
+
     this.checks.push({
       id: `client-mcp-name-header-${method.replace('/', '-')}`,
       name: `ClientMcpNameHeader_${method.replace('/', '_')}`,
@@ -278,7 +308,9 @@ export class HttpStandardHeadersScenario implements Scenario {
             version: '1.0.0'
           },
           capabilities: {
-            tools: {}
+            tools: {},
+            resources: {},
+            prompts: {}
           }
         }
       })
@@ -401,7 +433,12 @@ export class HttpStandardHeadersScenario implements Scenario {
         jsonrpc: '2.0',
         id: request.id,
         result: {
-          prompts: []
+          prompts: [
+            {
+              name: 'test_prompt',
+              description: 'A simple prompt for header testing'
+            }
+          ]
         }
       })
     );

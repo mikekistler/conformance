@@ -239,24 +239,39 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
     'Tests that client mirrors x-mcp-header tool parameters into Mcp-Param headers with correct encoding (SEP-2243)';
 
   private toolCallReceived: boolean = false;
+  private nullToolCallReceived: boolean = false;
 
   async start(): Promise<ScenarioUrls> {
     const urls = await super.start();
     // Pass test values via context for encoding edge cases.
     // The conformance client should use these values when calling test_custom_headers.
     urls.context = {
-      toolCall: {
-        name: 'test_custom_headers',
-        arguments: {
-          region: 'us-west1',
-          priority: 42,
-          verbose: false,
-          empty_val: '',
-          method_val: 'test-method',
-          float_val: 3.14159,
-          query: 'SELECT * FROM users'
+      toolCalls: [
+        {
+          name: 'test_custom_headers',
+          arguments: {
+            region: 'us-west1',
+            priority: 42,
+            verbose: false,
+            empty_val: '',
+            method_val: 'test-method',
+            float_val: 3.14159,
+            non_ascii_val: 'Hello, 世界',
+            whitespace_val: ' padded ',
+            control_char_val: 'line1\nline2',
+            query: 'SELECT * FROM users'
+          }
+        },
+        {
+          name: 'test_custom_headers_null',
+          arguments: {
+            region: 'us-east1',
+            priority: 1,
+            verbose: null,
+            query: 'SELECT 1'
+          }
         }
-      }
+      ]
     };
     return urls;
   }
@@ -271,6 +286,19 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
         timestamp: new Date().toISOString(),
         errorMessage:
           'Client did not send a tools/call request for test_custom_headers.',
+        specReferences: [SPEC_REFERENCE_CUSTOM]
+      });
+    }
+    if (!this.nullToolCallReceived) {
+      this.checks.push({
+        id: 'client-custom-header-omit-null',
+        name: 'ClientCustomHeaderOmitNull',
+        description:
+          'Client MUST omit Mcp-Param header when parameter value is null or not provided',
+        status: 'FAILURE',
+        timestamp: new Date().toISOString(),
+        errorMessage:
+          'Client did not send a tools/call request for test_custom_headers_null to test null/omitted parameter handling.',
         specReferences: [SPEC_REFERENCE_CUSTOM]
       });
     }
@@ -339,10 +367,58 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
                   description: 'Floating point numeric value',
                   'x-mcp-header': 'FloatVal'
                 },
+                non_ascii_val: {
+                  type: 'string',
+                  description:
+                    'Non-ASCII string value — requires Base64 encoding',
+                  'x-mcp-header': 'NonAscii'
+                },
+                whitespace_val: {
+                  type: 'string',
+                  description:
+                    'String with leading/trailing whitespace — requires Base64 encoding',
+                  'x-mcp-header': 'Whitespace'
+                },
+                control_char_val: {
+                  type: 'string',
+                  description:
+                    'String with control characters — requires Base64 encoding',
+                  'x-mcp-header': 'ControlChar'
+                },
                 query: {
                   type: 'string',
                   description:
                     'No x-mcp-header annotation - should not be mirrored'
+                }
+              },
+              required: ['region', 'priority', 'query']
+            }
+          },
+          {
+            name: 'test_custom_headers_null',
+            description:
+              'A tool for testing null/omitted x-mcp-header parameter handling',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                region: {
+                  type: 'string',
+                  description: 'Plain ASCII string value',
+                  'x-mcp-header': 'Region'
+                },
+                priority: {
+                  type: 'number',
+                  description: 'Integer numeric value',
+                  'x-mcp-header': 'Priority'
+                },
+                verbose: {
+                  type: 'boolean',
+                  description: 'Boolean value — will be null to test omission',
+                  'x-mcp-header': 'Verbose'
+                },
+                query: {
+                  type: 'string',
+                  description: 'No x-mcp-header annotation'
                 }
               },
               required: ['region', 'priority', 'query']
@@ -358,44 +434,103 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
     res: http.ServerResponse,
     request: any
   ): void {
-    this.toolCallReceived = true;
+    const toolName = request.params?.name;
     const args = request.params?.arguments || {};
 
-    // Check Mcp-Param-Region header (plain ASCII string)
-    this.checkParamHeader(req, 'Region', args.region, 'string');
+    if (toolName === 'test_custom_headers') {
+      this.toolCallReceived = true;
 
-    // Check Mcp-Param-Priority header (integer number)
-    this.checkParamHeader(req, 'Priority', args.priority, 'number');
+      // Check Mcp-Param-Region header (plain ASCII string)
+      this.checkParamHeader(req, 'Region', args.region, 'string');
 
-    // Check Mcp-Param-Verbose header (boolean value)
-    if (args.verbose !== undefined && args.verbose !== null) {
-      this.checkParamHeader(req, 'Verbose', args.verbose, 'boolean');
+      // Check Mcp-Param-Priority header (integer number)
+      this.checkParamHeader(req, 'Priority', args.priority, 'number');
 
-      // Explicit check: optional parameter present → client MUST include header
-      const verboseHeader = req.headers['mcp-param-verbose'] as
-        | string
-        | undefined;
-      this.checks.push({
-        id: 'client-custom-header-optional-present',
-        name: 'ClientCustomHeaderOptionalPresent',
-        description:
-          'Client MUST include Mcp-Param header when optional parameter is provided',
-        status: verboseHeader !== undefined ? 'SUCCESS' : 'FAILURE',
-        timestamp: new Date().toISOString(),
-        errorMessage:
-          verboseHeader === undefined
-            ? `Optional parameter 'verbose' was provided with value '${args.verbose}' but Mcp-Param-Verbose header is missing. Client MUST include the header when the parameter is present.`
-            : undefined,
-        specReferences: [SPEC_REFERENCE_CUSTOM],
-        details: {
-          parameter: 'verbose',
-          bodyValue: args.verbose,
-          headerPresent: verboseHeader !== undefined
-        }
-      });
-    } else {
+      // Check Mcp-Param-Verbose header (boolean value)
+      if (args.verbose !== undefined && args.verbose !== null) {
+        this.checkParamHeader(req, 'Verbose', args.verbose, 'boolean');
+
+        // Explicit check: optional parameter present → client MUST include header
+        const verboseHeader = req.headers['mcp-param-verbose'] as
+          | string
+          | undefined;
+        this.checks.push({
+          id: 'client-custom-header-optional-present',
+          name: 'ClientCustomHeaderOptionalPresent',
+          description:
+            'Client MUST include Mcp-Param header when optional parameter is provided',
+          status: verboseHeader !== undefined ? 'SUCCESS' : 'FAILURE',
+          timestamp: new Date().toISOString(),
+          errorMessage:
+            verboseHeader === undefined
+              ? `Optional parameter 'verbose' was provided with value '${args.verbose}' but Mcp-Param-Verbose header is missing. Client MUST include the header when the parameter is present.`
+              : undefined,
+          specReferences: [SPEC_REFERENCE_CUSTOM],
+          details: {
+            parameter: 'verbose',
+            bodyValue: args.verbose,
+            headerPresent: verboseHeader !== undefined
+          }
+        });
+      }
+
+      // Check Mcp-Param-EmptyVal header (empty string → empty header value)
+      if (args.empty_val !== undefined && args.empty_val !== null) {
+        this.checkParamHeader(req, 'EmptyVal', args.empty_val, 'string');
+      }
+
+      // Check Mcp-Param-Method header (x-mcp-header "Method" → Mcp-Param-Method, NOT Mcp-Method)
+      if (args.method_val !== undefined && args.method_val !== null) {
+        this.checkParamHeader(req, 'Method', args.method_val, 'string');
+      }
+
+      // Check Mcp-Param-FloatVal header (floating point number)
+      if (args.float_val !== undefined && args.float_val !== null) {
+        this.checkParamHeader(req, 'FloatVal', args.float_val, 'number');
+      }
+
+      // Check Mcp-Param-NonAscii header (requires Base64 encoding)
+      if (args.non_ascii_val !== undefined && args.non_ascii_val !== null) {
+        this.checkParamHeader(req, 'NonAscii', args.non_ascii_val, 'string');
+      }
+
+      // Check Mcp-Param-Whitespace header (leading/trailing whitespace → Base64)
+      if (args.whitespace_val !== undefined && args.whitespace_val !== null) {
+        this.checkParamHeader(req, 'Whitespace', args.whitespace_val, 'string');
+      }
+
+      // Check Mcp-Param-ControlChar header (control characters → Base64)
+      if (
+        args.control_char_val !== undefined &&
+        args.control_char_val !== null
+      ) {
+        this.checkParamHeader(
+          req,
+          'ControlChar',
+          args.control_char_val,
+          'string'
+        );
+      }
+
+      // Check that 'query' (no x-mcp-header) is NOT mirrored
+      const queryHeader = req.headers['mcp-param-query'] as string | undefined;
+      if (queryHeader !== undefined) {
+        this.checks.push({
+          id: 'client-custom-header-no-mirror-unannotated',
+          name: 'ClientCustomHeaderNoMirrorUnannotated',
+          description:
+            'Client MUST NOT add Mcp-Param headers for parameters without x-mcp-header',
+          status: 'FAILURE',
+          timestamp: new Date().toISOString(),
+          errorMessage: `Found unexpected Mcp-Param-Query header '${queryHeader}' for unannotated parameter`,
+          specReferences: [SPEC_REFERENCE_CUSTOM]
+        });
+      }
+    } else if (toolName === 'test_custom_headers_null') {
+      this.nullToolCallReceived = true;
+
       // When value is null or not provided, client MUST omit the header
-      const headerValue = req.headers['mcp-param-verbose'] as
+      const verboseHeader = req.headers['mcp-param-verbose'] as
         | string
         | undefined;
       this.checks.push({
@@ -403,42 +538,12 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
         name: 'ClientCustomHeaderOmitNull',
         description:
           'Client MUST omit Mcp-Param header when parameter value is null or not provided',
-        status: headerValue === undefined ? 'SUCCESS' : 'FAILURE',
+        status: verboseHeader === undefined ? 'SUCCESS' : 'FAILURE',
         timestamp: new Date().toISOString(),
         errorMessage:
-          headerValue !== undefined
-            ? `Mcp-Param-Verbose should be omitted when null/undefined, but got '${headerValue}'`
+          verboseHeader !== undefined
+            ? `Mcp-Param-Verbose should be omitted when null/undefined, but got '${verboseHeader}'`
             : undefined,
-        specReferences: [SPEC_REFERENCE_CUSTOM]
-      });
-    }
-
-    // Check Mcp-Param-EmptyVal header (empty string → empty header value)
-    if (args.empty_val !== undefined && args.empty_val !== null) {
-      this.checkParamHeader(req, 'EmptyVal', args.empty_val, 'string');
-    }
-
-    // Check Mcp-Param-Method header (x-mcp-header "Method" → Mcp-Param-Method, NOT Mcp-Method)
-    if (args.method_val !== undefined && args.method_val !== null) {
-      this.checkParamHeader(req, 'Method', args.method_val, 'string');
-    }
-
-    // Check Mcp-Param-FloatVal header (floating point number)
-    if (args.float_val !== undefined && args.float_val !== null) {
-      this.checkParamHeader(req, 'FloatVal', args.float_val, 'number');
-    }
-
-    // Check that 'query' (no x-mcp-header) is NOT mirrored
-    const queryHeader = req.headers['mcp-param-query'] as string | undefined;
-    if (queryHeader !== undefined) {
-      this.checks.push({
-        id: 'client-custom-header-no-mirror-unannotated',
-        name: 'ClientCustomHeaderNoMirrorUnannotated',
-        description:
-          'Client MUST NOT add Mcp-Param headers for parameters without x-mcp-header',
-        status: 'FAILURE',
-        timestamp: new Date().toISOString(),
-        errorMessage: `Found unexpected Mcp-Param-Query header '${queryHeader}' for unannotated parameter`,
         specReferences: [SPEC_REFERENCE_CUSTOM]
       });
     }
@@ -539,6 +644,20 @@ export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
         specReferences: [SPEC_REFERENCE_TOOL_DEF]
       });
     }
+
+    // Check that valid_tool WAS called — proves client kept valid tools
+    const validToolCalled = this.calledTools.has('valid_tool');
+    this.checks.push({
+      id: 'client-keeps-valid-tool',
+      name: 'ClientKeepsValidTool',
+      description: 'Client MUST keep valid tools while excluding invalid ones',
+      status: validToolCalled ? 'SUCCESS' : 'FAILURE',
+      timestamp: new Date().toISOString(),
+      errorMessage: validToolCalled
+        ? undefined
+        : "Client did not call 'valid_tool'. A single malformed tool definition must not prevent other valid tools from being used.",
+      specReferences: [SPEC_REFERENCE_TOOL_DEF]
+    });
 
     // Check that the client did NOT call any of the invalid tools
     const invalidTools = [

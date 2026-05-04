@@ -14,6 +14,7 @@
  * its behavior).
  */
 
+import http from 'http';
 import { ClientScenario, ConformanceCheck, SpecVersion } from '../../types';
 import { connectToServer } from './client-helper';
 
@@ -41,37 +42,61 @@ const HEADER_MISMATCH_ERROR_CODE = -32001;
 
 /**
  * Helper to send a raw HTTP POST request with custom headers.
- * This bypasses the SDK's automatic header handling so we can test
- * server validation of mismatched/missing headers.
+ * Uses Node.js http.request to preserve exact header casing and values,
+ * avoiding normalization that fetch()/Headers may apply.
  */
 async function sendRawRequest(
   serverUrl: string,
   body: object,
   headers: Record<string, string> = {}
-): Promise<{ status: number; body: any; headers: Headers }> {
-  const response = await fetch(serverUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json, text/event-stream',
-      ...headers
-    },
-    body: JSON.stringify(body)
+): Promise<{ status: number; body: any; headers: http.IncomingHttpHeaders }> {
+  const url = new URL(serverUrl);
+  const bodyStr = JSON.stringify(body);
+
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          'Content-Length': Buffer.byteLength(bodyStr),
+          ...headers
+        }
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk.toString();
+        });
+        res.on('end', () => {
+          let responseBody: any;
+          const contentType = res.headers['content-type'];
+          if (contentType?.includes('application/json')) {
+            try {
+              responseBody = JSON.parse(data);
+            } catch {
+              responseBody = data;
+            }
+          } else {
+            responseBody = data;
+          }
+          resolve({
+            status: res.statusCode || 0,
+            body: responseBody,
+            headers: res.headers
+          });
+        });
+      }
+    );
+
+    req.on('error', reject);
+    req.write(bodyStr);
+    req.end();
   });
-
-  let responseBody: any;
-  const contentType = response.headers.get('content-type');
-  if (contentType?.includes('application/json')) {
-    responseBody = await response.json();
-  } else {
-    responseBody = await response.text();
-  }
-
-  return {
-    status: response.status,
-    body: responseBody,
-    headers: response.headers
-  };
 }
 
 function createRejectionCheck(
@@ -187,7 +212,8 @@ export class HttpHeaderValidationScenario implements ClientScenario {
       );
 
       if (initResponse.status === 200) {
-        sessionId = initResponse.headers.get('mcp-session-id') || null;
+        const rawSid = initResponse.headers['mcp-session-id'];
+        sessionId = (Array.isArray(rawSid) ? rawSid[0] : rawSid) || null;
         const notifHeaders: Record<string, string> = {
           'Mcp-Method': 'notifications/initialized'
         };
@@ -504,7 +530,8 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
       );
 
       if (initResponse.status === 200) {
-        sessionId = initResponse.headers.get('mcp-session-id') || null;
+        const rawSid2 = initResponse.headers['mcp-session-id'];
+        sessionId = (Array.isArray(rawSid2) ? rawSid2[0] : rawSid2) || null;
         const notifHeaders: Record<string, string> = {
           'Mcp-Method': 'notifications/initialized'
         };
@@ -521,12 +548,51 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
       };
       if (sessionId) baseHeaders['mcp-session-id'] = sessionId;
 
-      // Find the first x-mcp-header annotated property
+      // Find the first x-mcp-header annotated STRING property
+      // that is callable with minimal arguments to avoid schema validation failures
       const schema = xMcpTool.inputSchema as any;
-      const [paramName, paramDef] = Object.entries(schema.properties).find(
-        ([, def]: [string, any]) => def['x-mcp-header'] !== undefined
-      ) as [string, any];
+      const annotatedEntry = Object.entries(schema.properties).find(
+        ([, def]: [string, any]) =>
+          def['x-mcp-header'] !== undefined && (def as any).type === 'string'
+      );
+      if (!annotatedEntry) {
+        checks.push({
+          id: 'http-custom-header-server-no-string-param',
+          name: 'HttpCustomHeaderServerNoStringParam',
+          description:
+            'Server has no string-typed x-mcp-header parameter to test',
+          status: 'SKIPPED',
+          timestamp: new Date().toISOString(),
+          specReferences: [SPEC_REFERENCE_CUSTOM]
+        });
+        return checks;
+      }
+      const [paramName, paramDef] = annotatedEntry as [string, any];
       const headerSuffix = paramDef['x-mcp-header'];
+
+      // Build default arguments for all required params to avoid schema validation errors
+      const requiredParams: string[] = schema.required || [];
+      const defaultArgs: Record<string, string> = {};
+      const defaultHeaders: Record<string, string> = {};
+      for (const rp of requiredParams) {
+        if (rp !== paramName) {
+          const rpDef = schema.properties[rp];
+          const rpType = rpDef?.type || 'string';
+          if (rpType === 'number') {
+            defaultArgs[rp] = '0' as any;
+          } else if (rpType === 'boolean') {
+            defaultArgs[rp] = 'false' as any;
+          } else {
+            defaultArgs[rp] = 'test-default';
+          }
+          // If this required param also has x-mcp-header, include its header too
+          if (rpDef?.['x-mcp-header']) {
+            defaultHeaders[`Mcp-Param-${rpDef['x-mcp-header']}`] = String(
+              defaultArgs[rp]
+            );
+          }
+        }
+      }
 
       let idCounter = 200;
       const nextId = () => idCounter++;
@@ -549,7 +615,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         paramName,
         'Hello',
         headerSuffix,
-        `=?base64?${validBase64Value}?=`
+        `=?base64?${validBase64Value}?=`,
+        defaultArgs,
+        defaultHeaders
       );
 
       // Invalid Base64 padding - server MUST reject
@@ -566,7 +634,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         paramName,
         'Hello',
         headerSuffix,
-        '=?base64?SGVsbG8?='
+        '=?base64?SGVsbG8?=',
+        defaultArgs,
+        defaultHeaders
       );
 
       // Invalid Base64 characters - server MUST reject
@@ -583,7 +653,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         paramName,
         'Hello',
         headerSuffix,
-        '=?base64?SGVs!!!bG8=?='
+        '=?base64?SGVs!!!bG8=?=',
+        defaultArgs,
+        defaultHeaders
       );
 
       // Missing prefix - server treats as literal value
@@ -600,7 +672,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         paramName,
         validBase64Value,
         headerSuffix,
-        validBase64Value
+        validBase64Value,
+        defaultArgs,
+        defaultHeaders
       );
 
       // Missing suffix - server treats as literal value
@@ -617,7 +691,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         paramName,
         `=?base64?${validBase64Value}`,
         headerSuffix,
-        `=?base64?${validBase64Value}`
+        `=?base64?${validBase64Value}`,
+        defaultArgs,
+        defaultHeaders
       );
 
       // Case-insensitive Base64 prefix - server MUST accept
@@ -634,7 +710,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         paramName,
         'Hello',
         headerSuffix,
-        `=?BASE64?${validBase64Value}?=`
+        `=?BASE64?${validBase64Value}?=`,
+        defaultArgs,
+        defaultHeaders
       );
 
       // --- Missing Custom Header with Value in Body ---
@@ -646,7 +724,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         nextId,
         xMcpTool.name,
         paramName,
-        headerSuffix
+        headerSuffix,
+        defaultArgs,
+        defaultHeaders
       );
     } catch (error) {
       checks.push({
@@ -676,7 +756,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
     paramName: string,
     bodyValue: string,
     headerSuffix: string,
-    headerValue: string
+    headerValue: string,
+    defaultArgs: Record<string, any>,
+    defaultHeaders: Record<string, string>
   ): Promise<void> {
     try {
       const response = await sendRawRequest(
@@ -687,11 +769,12 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
           method: 'tools/call',
           params: {
             name: toolName,
-            arguments: { [paramName]: bodyValue }
+            arguments: { ...defaultArgs, [paramName]: bodyValue }
           }
         },
         {
           ...baseHeaders,
+          ...defaultHeaders,
           'Mcp-Method': 'tools/call',
           'Mcp-Name': toolName,
           [`Mcp-Param-${headerSuffix}`]: headerValue
@@ -745,7 +828,9 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
     nextId: () => number,
     toolName: string,
     paramName: string,
-    headerSuffix: string
+    headerSuffix: string,
+    defaultArgs: Record<string, any>,
+    defaultHeaders: Record<string, string>
   ): Promise<void> {
     try {
       // Send tools/call with value in body but NO Mcp-Param header
@@ -757,11 +842,12 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
           method: 'tools/call',
           params: {
             name: toolName,
-            arguments: { [paramName]: 'test-value' }
+            arguments: { ...defaultArgs, [paramName]: 'test-value' }
           }
         },
         {
           ...baseHeaders,
+          ...defaultHeaders,
           'Mcp-Method': 'tools/call',
           'Mcp-Name': toolName
           // Deliberately omit Mcp-Param-{headerSuffix} header
