@@ -3,6 +3,8 @@ spec_url: https://modelcontextprotocol.io/specification/draft/basic/transports
 requirements:
   - text: 'HTTP POST requests MUST include the Mcp-Method header mirrored from the JSON-RPC method for all requests and notifications.'
     check: client-mcp-method-header-initialize
+  - text: 'HTTP POST notifications MUST include the Mcp-Method header mirrored from the JSON-RPC method.'
+    check: client-mcp-method-header-notifications-initialized
   - text: 'tools/call requests MUST include the Mcp-Name header mirrored from params.name.'
     check: client-mcp-name-header-tools-call
   - text: 'resources/read requests MUST include the Mcp-Name header mirrored from params.uri.'
@@ -51,6 +53,8 @@ requirements:
     check: client-custom-header-priority
   - text: 'Clients MUST convert boolean parameter values to lowercase true/false before mirroring them into Mcp-Param headers.'
     check: client-custom-header-verbose
+  - text: 'Clients MUST convert boolean true to lowercase "true" before mirroring into Mcp-Param headers.'
+    check: client-custom-header-debug
   - text: 'If an x-mcp-header parameter value is provided, the client MUST include the corresponding Mcp-Param header.'
     check: client-custom-header-optional-present
   - text: 'If an x-mcp-header parameter value is null or omitted, the client MUST omit the corresponding Mcp-Param header.'
@@ -59,8 +63,18 @@ requirements:
     check: client-custom-header-nonascii
   - text: 'When a value has leading or trailing whitespace, clients MUST use the =?base64?...?= wrapper.'
     check: client-custom-header-whitespace
+  - text: 'When a value has leading whitespace only, clients MUST use the =?base64?...?= wrapper.'
+    check: client-custom-header-leadingspace
+  - text: 'When a value has trailing whitespace only, clients MUST use the =?base64?...?= wrapper.'
+    check: client-custom-header-trailingspace
+  - text: 'When a value has internal spaces only (no leading/trailing), clients MUST send it as plain ASCII without Base64.'
+    check: client-custom-header-internalspace
   - text: 'When a value contains control characters, clients MUST use the =?base64?...?= wrapper.'
     check: client-custom-header-controlchar
+  - text: 'When a value contains carriage return and line feed, clients MUST use the =?base64?...?= wrapper.'
+    check: client-custom-header-crlf
+  - text: 'When a value has a leading tab, clients MUST use the =?base64?...?= wrapper.'
+    check: client-custom-header-tab
   - text: 'Servers that inspect Base64-encoded Mcp-Param values MUST decode them before comparing them with the request body.'
     check: server-accepts-valid-base64
   - text: 'Servers MUST reject requests with invalid Base64 padding in Mcp-Param values.'
@@ -85,3 +99,5 @@ requirements:
     check: client-custom-header-no-mirror-unannotated
   - text: 'Intermediaries MUST return an appropriate HTTP error status for validation failures.'
     excluded: 'Applies to network intermediaries rather than the MCP client or server implementation under test.'
+  - text: 'Servers MUST reject requests with Mcp-Param headers that contain invalid characters per RFC 9110.'
+    excluded: 'HTTP itself prevents invalid characters (CR, LF, null, non-ASCII) in header values; standard HTTP libraries reject them before the server can process them, making this untestable through conformance tests.'

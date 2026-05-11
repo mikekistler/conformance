@@ -80,8 +80,10 @@ export class HttpStandardHeadersScenario implements Scenario {
 
   getChecks(): ConformanceCheck[] {
     // Enforce that Mcp-Method was checked for all expected request types
+    // SEP-2243 requires Mcp-Method on "all requests and notifications"
     const expectedMethods = [
       'initialize',
+      'notifications/initialized',
       'tools/list',
       'tools/call',
       'resources/list',

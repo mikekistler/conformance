@@ -253,12 +253,18 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
             region: 'us-west1',
             priority: 42,
             verbose: false,
+            debug: true,
             empty_val: '',
             method_val: 'test-method',
             float_val: 3.14159,
             non_ascii_val: 'Hello, 世界',
             whitespace_val: ' padded ',
+            leading_space_val: ' us-west1',
+            trailing_space_val: 'us-west1 ',
+            internal_space_val: 'us west 1',
             control_char_val: 'line1\nline2',
+            crlf_val: 'line1\r\nline2',
+            tab_val: '\tindented',
             query: 'SELECT * FROM users'
           }
         },
@@ -351,6 +357,11 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
                   description: 'Boolean value',
                   'x-mcp-header': 'Verbose'
                 },
+                debug: {
+                  type: 'boolean',
+                  description: 'Boolean true value',
+                  'x-mcp-header': 'Debug'
+                },
                 empty_val: {
                   type: 'string',
                   description: 'Empty string value',
@@ -379,11 +390,41 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
                     'String with leading/trailing whitespace — requires Base64 encoding',
                   'x-mcp-header': 'Whitespace'
                 },
+                leading_space_val: {
+                  type: 'string',
+                  description:
+                    'String with leading space only — requires Base64 encoding',
+                  'x-mcp-header': 'LeadingSpace'
+                },
+                trailing_space_val: {
+                  type: 'string',
+                  description:
+                    'String with trailing space only — requires Base64 encoding',
+                  'x-mcp-header': 'TrailingSpace'
+                },
+                internal_space_val: {
+                  type: 'string',
+                  description:
+                    'String with internal spaces only — plain ASCII, no Base64',
+                  'x-mcp-header': 'InternalSpace'
+                },
                 control_char_val: {
                   type: 'string',
                   description:
                     'String with control characters — requires Base64 encoding',
                   'x-mcp-header': 'ControlChar'
+                },
+                crlf_val: {
+                  type: 'string',
+                  description:
+                    'String with carriage return and line feed — requires Base64 encoding',
+                  'x-mcp-header': 'CrLf'
+                },
+                tab_val: {
+                  type: 'string',
+                  description:
+                    'String with leading tab — requires Base64 encoding',
+                  'x-mcp-header': 'Tab'
                 },
                 query: {
                   type: 'string',
@@ -474,6 +515,11 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
         });
       }
 
+      // Check Mcp-Param-Debug header (boolean true value)
+      if (args.debug !== undefined && args.debug !== null) {
+        this.checkParamHeader(req, 'Debug', args.debug, 'boolean');
+      }
+
       // Check Mcp-Param-EmptyVal header (empty string → empty header value)
       if (args.empty_val !== undefined && args.empty_val !== null) {
         this.checkParamHeader(req, 'EmptyVal', args.empty_val, 'string');
@@ -499,6 +545,45 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
         this.checkParamHeader(req, 'Whitespace', args.whitespace_val, 'string');
       }
 
+      // Check Mcp-Param-LeadingSpace header (leading space only → Base64)
+      if (
+        args.leading_space_val !== undefined &&
+        args.leading_space_val !== null
+      ) {
+        this.checkParamHeader(
+          req,
+          'LeadingSpace',
+          args.leading_space_val,
+          'string'
+        );
+      }
+
+      // Check Mcp-Param-TrailingSpace header (trailing space only → Base64)
+      if (
+        args.trailing_space_val !== undefined &&
+        args.trailing_space_val !== null
+      ) {
+        this.checkParamHeader(
+          req,
+          'TrailingSpace',
+          args.trailing_space_val,
+          'string'
+        );
+      }
+
+      // Check Mcp-Param-InternalSpace header (internal spaces only → plain ASCII, no Base64)
+      if (
+        args.internal_space_val !== undefined &&
+        args.internal_space_val !== null
+      ) {
+        this.checkParamHeader(
+          req,
+          'InternalSpace',
+          args.internal_space_val,
+          'string'
+        );
+      }
+
       // Check Mcp-Param-ControlChar header (control characters → Base64)
       if (
         args.control_char_val !== undefined &&
@@ -510,6 +595,16 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
           args.control_char_val,
           'string'
         );
+      }
+
+      // Check Mcp-Param-CrLf header (carriage return + line feed → Base64)
+      if (args.crlf_val !== undefined && args.crlf_val !== null) {
+        this.checkParamHeader(req, 'CrLf', args.crlf_val, 'string');
+      }
+
+      // Check Mcp-Param-Tab header (leading tab → Base64)
+      if (args.tab_val !== undefined && args.tab_val !== null) {
+        this.checkParamHeader(req, 'Tab', args.tab_val, 'string');
       }
 
       // Check that 'query' (no x-mcp-header) is NOT mirrored
