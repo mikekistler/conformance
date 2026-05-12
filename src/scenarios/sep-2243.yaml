@@ -37,8 +37,6 @@ requirements:
     check: client-rejects-invalid-tool-invalid_array_header
   - text: 'x-mcp-header annotations on null parameters MUST be rejected.'
     check: client-rejects-invalid-tool-invalid_null_header
-  - text: 'x-mcp-header annotations nested inside object properties MUST be rejected.'
-    check: client-rejects-invalid-tool-invalid_nested_header
   - text: 'Clients MUST reject tool definitions whose x-mcp-header values contain spaces.'
     check: client-rejects-invalid-tool-invalid_space_in_name
   - text: 'Clients MUST reject tool definitions whose x-mcp-header values contain colons.'

@@ -761,7 +761,6 @@ export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
       'invalid_object_header',
       'invalid_array_header',
       'invalid_null_header',
-      'invalid_nested_header',
       'invalid_duplicate_same_case',
       'invalid_duplicate_diff_case',
       'invalid_space_in_name',
@@ -887,28 +886,6 @@ export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
                 nil: { type: 'null', 'x-mcp-header': 'Nil' }
               },
               required: ['nil']
-            }
-          },
-
-          // ── Invalid: x-mcp-header on nested property inside object ──
-          {
-            name: 'invalid_nested_header',
-            description:
-              'x-mcp-header on property inside nested object (MUST be rejected)',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                outer: {
-                  type: 'object',
-                  properties: {
-                    inner: {
-                      type: 'string',
-                      'x-mcp-header': 'Inner'
-                    }
-                  }
-                }
-              },
-              required: ['outer']
             }
           },
 
