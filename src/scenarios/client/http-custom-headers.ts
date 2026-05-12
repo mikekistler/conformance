@@ -73,7 +73,8 @@ function needsBase64Encoding(value: string): boolean {
  */
 function validateEncodedHeader(
   rawHeader: string,
-  bodyValue: string
+  bodyValue: string,
+  valueType?: string
 ): string | null {
   if (needsBase64Encoding(bodyValue)) {
     // Value requires Base64 encoding
@@ -83,6 +84,9 @@ function validateEncodedHeader(
       return `Value '${bodyValue}' requires Base64 encoding but header was sent as plain: '${rawHeader}'`;
     }
     const decoded = Buffer.from(base64Match[1], 'base64').toString('utf-8');
+    if (valueType === 'number') {
+      return compareNumericValues(decoded, bodyValue);
+    }
     if (decoded !== bodyValue) {
       return `Base64-decoded header value '${decoded}' does not match body value '${bodyValue}'`;
     }
@@ -90,8 +94,40 @@ function validateEncodedHeader(
   }
   // Plain ASCII - compare directly (after decoding if Base64 was used)
   const decoded = decodeHeaderValue(rawHeader);
+  if (valueType === 'number') {
+    return compareNumericValues(decoded, bodyValue);
+  }
   if (decoded !== bodyValue) {
     return `Header value '${decoded}' (raw: '${rawHeader}') does not match body value '${bodyValue}'`;
+  }
+  return null;
+}
+
+/**
+ * Compare two string representations of numbers numerically.
+ * For integers, requires exact match. For decimals, allows
+ * a tolerance of 1e-9 to account for cross-SDK floating point
+ * representation differences.
+ */
+function compareNumericValues(
+  headerValue: string,
+  bodyValue: string
+): string | null {
+  const headerNum = Number(headerValue);
+  const bodyNum = Number(bodyValue);
+  if (isNaN(headerNum) || isNaN(bodyNum)) {
+    return `Non-numeric value in number comparison: header='${headerValue}', body='${bodyValue}'`;
+  }
+  if (Number.isInteger(bodyNum)) {
+    // Integer: require exact numeric match (e.g. 42 === 42.0)
+    if (headerNum !== bodyNum) {
+      return `Numeric header value ${headerNum} does not match body value ${bodyNum}`;
+    }
+  } else {
+    // Decimal: allow tolerance of 1e-9
+    if (Math.abs(headerNum - bodyNum) > 1e-9) {
+      return `Numeric header value ${headerNum} does not match body value ${bodyNum} (difference ${Math.abs(headerNum - bodyNum)} exceeds tolerance 1e-9)`;
+    }
   }
   return null;
 }
@@ -684,9 +720,13 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
           expectedString = String(bodyValue);
       }
 
+      // For numbers, compare numerically to allow for cross-SDK
+      // floating point representation differences (e.g., "42" vs "42.0").
+      // See SEP-2243 discussion on number precision.
       const validationError = validateEncodedHeader(
         rawHeaderValue,
-        expectedString
+        expectedString,
+        valueType
       );
       if (validationError) {
         errors.push(validationError);
