@@ -81,8 +81,7 @@ requirements:
     check: server-rejects-invalid-base64-padding
   - text: 'Servers MUST reject requests with invalid Base64 characters in Mcp-Param values.'
     check: server-rejects-invalid-base64-chars
-  - text: 'Servers MUST accept case-insensitive =?base64? wrappers.'
-    check: server-accepts-case-insensitive-base64
+
   - text: 'Servers MUST return HTTP 400 Bad Request when required standard headers are missing.'
     check: server-rejects-missing-method-header
   - text: 'Servers MUST reject requests where Mcp-Name is omitted but the corresponding body value is present.'

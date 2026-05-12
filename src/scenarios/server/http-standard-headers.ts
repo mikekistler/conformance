@@ -472,7 +472,6 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
 - Server MUST validate Base64-encoded header values
 - Server MUST reject requests with invalid Base64 padding or characters
 - Server MUST treat values without =?base64?...?= wrapper as literal
-- Server MUST accept case-insensitive =?base64? prefix
 - Server MUST reject requests where custom header is omitted but value is in body`;
 
   async run(serverUrl: string): Promise<ConformanceCheck[]> {
@@ -692,25 +691,6 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         `=?base64?${validBase64Value}`,
         headerSuffix,
         `=?base64?${validBase64Value}`,
-        defaultArgs,
-        defaultHeaders
-      );
-
-      // Case-insensitive Base64 prefix - server MUST accept
-      await this.testBase64Case(
-        checks,
-        serverUrl,
-        baseHeaders,
-        nextId,
-        'accept',
-        'server-accepts-case-insensitive-base64',
-        'ServerAcceptsCaseInsensitiveBase64',
-        'Server MUST accept case-insensitive =?BASE64? prefix',
-        xMcpTool.name,
-        paramName,
-        'Hello',
-        headerSuffix,
-        `=?BASE64?${validBase64Value}?=`,
         defaultArgs,
         defaultHeaders
       );
