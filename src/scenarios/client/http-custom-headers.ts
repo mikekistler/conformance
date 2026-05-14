@@ -12,11 +12,12 @@
 
 import http from 'http';
 import {
-  Scenario,
   ScenarioUrls,
   ConformanceCheck,
-  SpecVersion
+  SpecVersion,
+  DRAFT_PROTOCOL_VERSION
 } from '../../types.js';
+import { BaseHttpScenario } from './http-base.js';
 
 const SPEC_REFERENCE_CUSTOM = {
   id: 'SEP-2243-Custom-Headers',
@@ -38,7 +39,7 @@ const SPEC_REFERENCE_TOOL_DEF = {
  * Base64-encoded values use the format: =?base64?{Base64EncodedValue}?=
  */
 function decodeHeaderValue(value: string): string {
-  const base64Match = value.match(/^=\?base64\?(.+)\?=$/);
+  const base64Match = value.match(/^=\?base64\?(.*)\?=$/);
   if (base64Match) {
     return Buffer.from(base64Match[1], 'base64').toString('utf-8');
   }
@@ -78,7 +79,7 @@ function validateEncodedHeader(
 ): string | null {
   if (needsBase64Encoding(bodyValue)) {
     // Value requires Base64 encoding
-    const base64Match = rawHeader.match(/^=\?base64\?(.+)\?=$/);
+    const base64Match = rawHeader.match(/^=\?base64\?(.*)\?=$/);
 
     if (!base64Match) {
       return `Value '${bodyValue}' requires Base64 encoding but header was sent as plain: '${rawHeader}'`;
@@ -132,146 +133,13 @@ function compareNumericValues(
   return null;
 }
 
-// Shared server boilerplate for Scenario implementations
-abstract class BaseHttpScenario implements Scenario {
-  abstract name: string;
-  abstract description: string;
-  abstract specVersions: SpecVersion[];
-  allowClientError?: boolean;
-
-  protected server: http.Server | null = null;
-  protected checks: ConformanceCheck[] = [];
-  protected port: number = 0;
-  protected sessionId: string = `session-${Date.now()}`;
-
-  async start(): Promise<ScenarioUrls> {
-    return new Promise((resolve, reject) => {
-      this.server = http.createServer((req, res) => {
-        this.handleRequest(req, res);
-      });
-      this.server.on('error', reject);
-      this.server.listen(0, () => {
-        const address = this.server!.address();
-        if (address && typeof address === 'object') {
-          this.port = address.port;
-          resolve({ serverUrl: `http://localhost:${this.port}` });
-        } else {
-          reject(new Error('Failed to get server address'));
-        }
-      });
-    });
-  }
-
-  async stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.server) {
-        this.server.close((err) => {
-          if (err) reject(err);
-          else {
-            this.server = null;
-            resolve();
-          }
-        });
-      } else {
-        resolve();
-      }
-    });
-  }
-
-  abstract getChecks(): ConformanceCheck[];
-
-  protected handleRequest(
-    req: http.IncomingMessage,
-    res: http.ServerResponse
-  ): void {
-    if (req.method === 'GET') {
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-        'mcp-session-id': this.sessionId
-      });
-      res.write('data: \n\n');
-      return;
-    }
-    if (req.method === 'DELETE') {
-      res.writeHead(200);
-      res.end();
-      return;
-    }
-    if (req.method !== 'POST') {
-      res.writeHead(405);
-      res.end('Method Not Allowed');
-      return;
-    }
-
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      try {
-        const request = JSON.parse(body);
-        this.handlePost(req, res, request);
-      } catch (error) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            jsonrpc: '2.0',
-            error: { code: -32700, message: `Parse error: ${error}` }
-          })
-        );
-      }
-    });
-  }
-
-  protected abstract handlePost(
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
-    request: any
-  ): void;
-
-  protected sendJson(res: http.ServerResponse, body: object): void {
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      'mcp-session-id': this.sessionId
-    });
-    res.end(JSON.stringify(body));
-  }
-
-  protected sendInitialize(res: http.ServerResponse, request: any): void {
-    this.sendJson(res, {
-      jsonrpc: '2.0',
-      id: request.id,
-      result: {
-        protocolVersion: 'DRAFT-2026-v1',
-        serverInfo: { name: this.name + '-server', version: '1.0.0' },
-        capabilities: { tools: {} }
-      }
-    });
-  }
-
-  protected sendNotificationAck(res: http.ServerResponse): void {
-    res.writeHead(202);
-    res.end();
-  }
-
-  protected sendGenericResult(res: http.ServerResponse, request: any): void {
-    this.sendJson(res, {
-      jsonrpc: '2.0',
-      id: request.id,
-      result: {}
-    });
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // HttpCustomHeadersScenario - tests that clients mirror x-mcp-header params
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class HttpCustomHeadersScenario extends BaseHttpScenario {
   name = 'http-custom-headers';
-  specVersions: SpecVersion[] = ['DRAFT-2026-v1'];
+  specVersions: SpecVersion[] = [DRAFT_PROTOCOL_VERSION];
   description =
     'Tests that client mirrors x-mcp-header tool parameters into Mcp-Param headers with correct encoding (SEP-2243)';
 
@@ -322,7 +190,7 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
   getChecks(): ConformanceCheck[] {
     if (!this.toolCallReceived) {
       this.checks.push({
-        id: 'client-custom-header-tool-call',
+        id: 'sep-2243-param-header-tool-call-gate',
         name: 'ClientCustomHeaderToolCall',
         description: 'Client calls the tool with x-mcp-header annotations',
         status: 'FAILURE',
@@ -334,7 +202,7 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
     }
     if (!this.nullToolCallReceived) {
       this.checks.push({
-        id: 'client-custom-header-omit-null',
+        id: 'sep-2243-client-omit-null',
         name: 'ClientCustomHeaderOmitNull',
         description:
           'Client MUST omit Mcp-Param header when parameter value is null or not provided',
@@ -525,31 +393,11 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
       this.checkParamHeader(req, 'Priority', args.priority, 'number');
 
       // Check Mcp-Param-Verbose header (boolean value)
+      // checkParamHeader already FAILs on missing header, so this also covers
+      // "optional parameter present → client MUST include header" without a
+      // separate check id.
       if (args.verbose !== undefined && args.verbose !== null) {
         this.checkParamHeader(req, 'Verbose', args.verbose, 'boolean');
-
-        // Explicit check: optional parameter present → client MUST include header
-        const verboseHeader = req.headers['mcp-param-verbose'] as
-          | string
-          | undefined;
-        this.checks.push({
-          id: 'client-custom-header-optional-present',
-          name: 'ClientCustomHeaderOptionalPresent',
-          description:
-            'Client MUST include Mcp-Param header when optional parameter is provided',
-          status: verboseHeader !== undefined ? 'SUCCESS' : 'FAILURE',
-          timestamp: new Date().toISOString(),
-          errorMessage:
-            verboseHeader === undefined
-              ? `Optional parameter 'verbose' was provided with value '${args.verbose}' but Mcp-Param-Verbose header is missing. Client MUST include the header when the parameter is present.`
-              : undefined,
-          specReferences: [SPEC_REFERENCE_CUSTOM],
-          details: {
-            parameter: 'verbose',
-            bodyValue: args.verbose,
-            headerPresent: verboseHeader !== undefined
-          }
-        });
       }
 
       // Check Mcp-Param-Debug header (boolean true value)
@@ -646,18 +494,19 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
 
       // Check that 'query' (no x-mcp-header) is NOT mirrored
       const queryHeader = req.headers['mcp-param-query'] as string | undefined;
-      if (queryHeader !== undefined) {
-        this.checks.push({
-          id: 'client-custom-header-no-mirror-unannotated',
-          name: 'ClientCustomHeaderNoMirrorUnannotated',
-          description:
-            'Client MUST NOT add Mcp-Param headers for parameters without x-mcp-header',
-          status: 'FAILURE',
-          timestamp: new Date().toISOString(),
-          errorMessage: `Found unexpected Mcp-Param-Query header '${queryHeader}' for unannotated parameter`,
-          specReferences: [SPEC_REFERENCE_CUSTOM]
-        });
-      }
+      this.checks.push({
+        id: 'sep-2243-no-mirror-unannotated',
+        name: 'ClientCustomHeaderNoMirrorUnannotated',
+        description:
+          'Client MUST NOT add Mcp-Param headers for parameters without x-mcp-header',
+        status: queryHeader === undefined ? 'SUCCESS' : 'FAILURE',
+        timestamp: new Date().toISOString(),
+        errorMessage:
+          queryHeader !== undefined
+            ? `Found unexpected Mcp-Param-Query header '${queryHeader}' for unannotated parameter`
+            : undefined,
+        specReferences: [SPEC_REFERENCE_CUSTOM]
+      });
     } else if (toolName === 'test_custom_headers_null') {
       this.nullToolCallReceived = true;
 
@@ -666,7 +515,7 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
         | string
         | undefined;
       this.checks.push({
-        id: 'client-custom-header-omit-null',
+        id: 'sep-2243-client-omit-null',
         name: 'ClientCustomHeaderOmitNull',
         description:
           'Client MUST omit Mcp-Param header when parameter value is null or not provided',
@@ -734,7 +583,7 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
     }
 
     this.checks.push({
-      id: `client-custom-header-${headerName.toLowerCase()}`,
+      id: `sep-2243-param-header-${headerName.toLowerCase()}`,
       name: `ClientCustomHeader_${headerName}`,
       description: `Client sends correct Mcp-Param-${headerName} header (${valueType} value)`,
       status: errors.length === 0 ? 'SUCCESS' : 'FAILURE',
@@ -760,7 +609,7 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
 
 export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
   name = 'http-invalid-tool-headers';
-  specVersions: SpecVersion[] = ['DRAFT-2026-v1'];
+  specVersions: SpecVersion[] = [DRAFT_PROTOCOL_VERSION];
   description =
     'Tests that client rejects tools with invalid x-mcp-header annotations (SEP-2243)';
   allowClientError = true;
@@ -771,7 +620,7 @@ export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
   getChecks(): ConformanceCheck[] {
     if (!this.toolsListSent) {
       this.checks.push({
-        id: 'client-invalid-tool-headers-tools-list',
+        id: 'sep-2243-invalid-tool-tools-list-gate',
         name: 'ClientInvalidToolHeadersToolsList',
         description: 'Client requests tools/list',
         status: 'FAILURE',
@@ -784,7 +633,7 @@ export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
     // Check that valid_tool WAS called — proves client kept valid tools
     const validToolCalled = this.calledTools.has('valid_tool');
     this.checks.push({
-      id: 'client-keeps-valid-tool',
+      id: 'sep-2243-keep-valid-tool',
       name: 'ClientKeepsValidTool',
       description: 'Client MUST keep valid tools while excluding invalid ones',
       status: validToolCalled ? 'SUCCESS' : 'FAILURE',
@@ -812,7 +661,7 @@ export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
     for (const toolName of invalidTools) {
       const called = this.calledTools.has(toolName);
       this.checks.push({
-        id: `client-rejects-invalid-tool-${toolName}`,
+        id: `sep-2243-reject-invalid-tool-${toolName.replace(/_/g, '-')}`,
         name: `ClientRejectsInvalidTool_${toolName}`,
         description: `Client MUST NOT call tool '${toolName}' with invalid x-mcp-header`,
         status: called ? 'FAILURE' : 'SUCCESS',
