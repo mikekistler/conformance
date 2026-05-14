@@ -148,6 +148,17 @@ function createAcceptanceCheck(
       `Expected successful response, got HTTP ${response.status}. Server MUST accept this request.`
     );
   }
+  // A server can return HTTP 200 with a JSON-RPC error in the body. Without
+  // this assertion that case would pass as "accepted".
+  if (
+    response.body &&
+    typeof response.body === 'object' &&
+    'error' in response.body
+  ) {
+    errors.push(
+      `Expected successful response, but body contains JSON-RPC error ${JSON.stringify(response.body.error)}.`
+    );
+  }
   return {
     id,
     name,
