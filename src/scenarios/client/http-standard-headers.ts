@@ -263,6 +263,12 @@ export class HttpStandardHeadersScenario implements Scenario {
     sourceField: string
   ): void {
     const method = request.method;
+
+    // Same de-dup guard as checkMcpMethodHeader: the harness advertises two
+    // tools and two resources, so a client that calls both would otherwise
+    // produce duplicate check rows for the same id.
+    if (this.nameHeaderChecks.has(method)) return;
+
     const expectedValue =
       sourceField === 'params.uri' ? request.params?.uri : request.params?.name;
 
