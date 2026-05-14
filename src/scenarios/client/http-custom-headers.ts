@@ -15,7 +15,8 @@ import {
   Scenario,
   ScenarioUrls,
   ConformanceCheck,
-  SpecVersion
+  SpecVersion,
+  DRAFT_PROTOCOL_VERSION
 } from '../../types.js';
 
 const SPEC_REFERENCE_CUSTOM = {
@@ -244,7 +245,7 @@ abstract class BaseHttpScenario implements Scenario {
       jsonrpc: '2.0',
       id: request.id,
       result: {
-        protocolVersion: 'DRAFT-2026-v1',
+        protocolVersion: DRAFT_PROTOCOL_VERSION,
         serverInfo: { name: this.name + '-server', version: '1.0.0' },
         capabilities: { tools: {} }
       }
@@ -271,7 +272,7 @@ abstract class BaseHttpScenario implements Scenario {
 
 export class HttpCustomHeadersScenario extends BaseHttpScenario {
   name = 'http-custom-headers';
-  specVersions: SpecVersion[] = ['DRAFT-2026-v1'];
+  specVersions: SpecVersion[] = [DRAFT_PROTOCOL_VERSION];
   description =
     'Tests that client mirrors x-mcp-header tool parameters into Mcp-Param headers with correct encoding (SEP-2243)';
 
@@ -741,7 +742,7 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
 
 export class HttpInvalidToolHeadersScenario extends BaseHttpScenario {
   name = 'http-invalid-tool-headers';
-  specVersions: SpecVersion[] = ['DRAFT-2026-v1'];
+  specVersions: SpecVersion[] = [DRAFT_PROTOCOL_VERSION];
   description =
     'Tests that client rejects tools with invalid x-mcp-header annotations (SEP-2243)';
   allowClientError = true;
