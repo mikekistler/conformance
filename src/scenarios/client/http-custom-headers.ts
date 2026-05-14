@@ -646,18 +646,19 @@ export class HttpCustomHeadersScenario extends BaseHttpScenario {
 
       // Check that 'query' (no x-mcp-header) is NOT mirrored
       const queryHeader = req.headers['mcp-param-query'] as string | undefined;
-      if (queryHeader !== undefined) {
-        this.checks.push({
-          id: 'client-custom-header-no-mirror-unannotated',
-          name: 'ClientCustomHeaderNoMirrorUnannotated',
-          description:
-            'Client MUST NOT add Mcp-Param headers for parameters without x-mcp-header',
-          status: 'FAILURE',
-          timestamp: new Date().toISOString(),
-          errorMessage: `Found unexpected Mcp-Param-Query header '${queryHeader}' for unannotated parameter`,
-          specReferences: [SPEC_REFERENCE_CUSTOM]
-        });
-      }
+      this.checks.push({
+        id: 'client-custom-header-no-mirror-unannotated',
+        name: 'ClientCustomHeaderNoMirrorUnannotated',
+        description:
+          'Client MUST NOT add Mcp-Param headers for parameters without x-mcp-header',
+        status: queryHeader === undefined ? 'SUCCESS' : 'FAILURE',
+        timestamp: new Date().toISOString(),
+        errorMessage:
+          queryHeader !== undefined
+            ? `Found unexpected Mcp-Param-Query header '${queryHeader}' for unannotated parameter`
+            : undefined,
+        specReferences: [SPEC_REFERENCE_CUSTOM]
+      });
     } else if (toolName === 'test_custom_headers_null') {
       this.nullToolCallReceived = true;
 
