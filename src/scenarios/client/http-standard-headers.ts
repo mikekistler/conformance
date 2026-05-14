@@ -16,7 +16,8 @@ import {
   Scenario,
   ScenarioUrls,
   ConformanceCheck,
-  SpecVersion
+  SpecVersion,
+  DRAFT_PROTOCOL_VERSION
 } from '../../types.js';
 
 const SPEC_REFERENCE = {
@@ -26,7 +27,7 @@ const SPEC_REFERENCE = {
 
 export class HttpStandardHeadersScenario implements Scenario {
   name = 'http-standard-headers';
-  specVersions: SpecVersion[] = ['DRAFT-2026-v1'];
+  specVersions: SpecVersion[] = [DRAFT_PROTOCOL_VERSION];
   description =
     'Tests that client includes Mcp-Method and Mcp-Name headers on HTTP POST requests (SEP-2243)';
 
@@ -315,7 +316,7 @@ export class HttpStandardHeadersScenario implements Scenario {
         jsonrpc: '2.0',
         id: request.id,
         result: {
-          protocolVersion: 'DRAFT-2026-v1',
+          protocolVersion: DRAFT_PROTOCOL_VERSION,
           serverInfo: {
             name: 'http-standard-headers-test-server',
             version: '1.0.0'

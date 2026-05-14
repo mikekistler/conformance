@@ -15,7 +15,12 @@
  */
 
 import http from 'http';
-import { ClientScenario, ConformanceCheck, SpecVersion } from '../../types';
+import {
+  ClientScenario,
+  ConformanceCheck,
+  SpecVersion,
+  DRAFT_PROTOCOL_VERSION
+} from '../../types';
 import { connectToServer } from './client-helper';
 
 const SPEC_REFERENCE = {
@@ -177,7 +182,7 @@ function createAcceptanceCheck(
 
 export class HttpHeaderValidationScenario implements ClientScenario {
   name = 'http-header-validation';
-  specVersions: SpecVersion[] = ['DRAFT-2026-v1'];
+  specVersions: SpecVersion[] = [DRAFT_PROTOCOL_VERSION];
   description = `Test server validation of standard MCP request headers (SEP-2243).
 
 **Server Implementation Requirements:**
@@ -211,7 +216,7 @@ export class HttpHeaderValidationScenario implements ClientScenario {
           id: 1,
           method: 'initialize',
           params: {
-            protocolVersion: 'DRAFT-2026-v1',
+            protocolVersion: DRAFT_PROTOCOL_VERSION,
             capabilities: {},
             clientInfo: {
               name: 'conformance-test-raw-client',
@@ -237,7 +242,7 @@ export class HttpHeaderValidationScenario implements ClientScenario {
       }
 
       const baseHeaders: Record<string, string> = {
-        'MCP-Protocol-Version': 'DRAFT-2026-v1'
+        'MCP-Protocol-Version': DRAFT_PROTOCOL_VERSION
       };
       if (sessionId) baseHeaders['mcp-session-id'] = sessionId;
 
@@ -472,7 +477,7 @@ export class HttpHeaderValidationScenario implements ClientScenario {
 
 export class HttpCustomHeaderServerValidationScenario implements ClientScenario {
   name = 'http-custom-header-server-validation';
-  specVersions: SpecVersion[] = ['DRAFT-2026-v1'];
+  specVersions: SpecVersion[] = [DRAFT_PROTOCOL_VERSION];
   description = `Test server validation of custom Mcp-Param headers and Base64 encoding (SEP-2243).
 
 **Server Implementation Requirements:**
@@ -528,7 +533,7 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
           id: 1,
           method: 'initialize',
           params: {
-            protocolVersion: 'DRAFT-2026-v1',
+            protocolVersion: DRAFT_PROTOCOL_VERSION,
             capabilities: {},
             clientInfo: {
               name: 'conformance-test-base64-client',
@@ -554,7 +559,7 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
       }
 
       const baseHeaders: Record<string, string> = {
-        'MCP-Protocol-Version': 'DRAFT-2026-v1'
+        'MCP-Protocol-Version': DRAFT_PROTOCOL_VERSION
       };
       if (sessionId) baseHeaders['mcp-session-id'] = sessionId;
 
