@@ -82,9 +82,10 @@ async function sendRawRequest(
         }
       },
       (res) => {
+        res.setEncoding('utf8');
         let data = '';
         res.on('data', (chunk) => {
-          data += chunk.toString();
+          data += chunk;
         });
         res.on('end', () => {
           let responseBody: any;
