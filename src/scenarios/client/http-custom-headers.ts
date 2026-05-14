@@ -38,7 +38,7 @@ const SPEC_REFERENCE_TOOL_DEF = {
  * Base64-encoded values use the format: =?base64?{Base64EncodedValue}?=
  */
 function decodeHeaderValue(value: string): string {
-  const base64Match = value.match(/^=\?base64\?(.+)\?=$/);
+  const base64Match = value.match(/^=\?base64\?(.*)\?=$/);
   if (base64Match) {
     return Buffer.from(base64Match[1], 'base64').toString('utf-8');
   }
@@ -78,7 +78,7 @@ function validateEncodedHeader(
 ): string | null {
   if (needsBase64Encoding(bodyValue)) {
     // Value requires Base64 encoding
-    const base64Match = rawHeader.match(/^=\?base64\?(.+)\?=$/);
+    const base64Match = rawHeader.match(/^=\?base64\?(.*)\?=$/);
 
     if (!base64Match) {
       return `Value '${bodyValue}' requires Base64 encoding but header was sent as plain: '${rawHeader}'`;
