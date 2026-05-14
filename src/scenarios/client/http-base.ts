@@ -88,9 +88,12 @@ export abstract class BaseHttpScenario implements Scenario {
       return;
     }
 
+    // Decode the stream as UTF-8 so multi-byte characters that straddle a
+    // chunk boundary aren't corrupted by per-chunk Buffer.toString().
+    req.setEncoding('utf8');
     let body = '';
     req.on('data', (chunk) => {
-      body += chunk.toString();
+      body += chunk;
     });
     req.on('end', () => {
       try {
