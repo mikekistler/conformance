@@ -127,12 +127,8 @@ function createRejectionChecks(
   response: { status: number; body: any },
   specRef: { id: string; url: string },
   details: Record<string, unknown>,
-  opts: {
-    statusSeverity?: 'FAILURE' | 'INFO';
-    errorCodeSeverity: 'FAILURE' | 'WARNING' | 'INFO';
-  }
+  opts: { errorCodeSeverity: 'FAILURE' | 'WARNING' }
 ): ConformanceCheck[] {
-  const statusSeverity = opts.statusSeverity ?? 'FAILURE';
   const fullDetails = {
     ...details,
     responseStatus: response.status,
@@ -148,7 +144,7 @@ function createRejectionChecks(
       id,
       name,
       description,
-      status: statusOk ? 'SUCCESS' : statusSeverity,
+      status: statusOk ? 'SUCCESS' : 'FAILURE',
       timestamp: ts,
       errorMessage: statusOk
         ? undefined
@@ -676,21 +672,21 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         defaultHeaders
       );
 
-      // Invalid Base64 padding — INFO, not FAILURE/WARNING. SEP-2243 says only
-      // "MUST decode them accordingly" without specifying RFC 4648 strictness.
-      // Lenient decoders (Node Buffer.from, browser atob) accept 'SGVsbG8' →
-      // server matches → accepts. Strict decoders (.NET Convert.FromBase64String)
-      // throw → server rejects. Either is currently spec-compliant. INFO records
-      // the behavior so cross-SDK divergence is visible without affecting tier.
+      // Invalid Base64 padding — FAILURE per the SEP-2243 conformance-test-case
+      // table, which is the approved source of truth for these cases. The spec
+      // body says only "MUST decode them accordingly", but the table specifies
+      // strict rejection. SDKs whose stdlib decoders are lenient (Node
+      // Buffer.from, browser atob) will need to validate before decoding; if
+      // that proves burdensome we'll revisit.
       await this.testBase64Case(
         checks,
         serverUrl,
         baseHeaders,
         nextId,
-        'reject-info',
+        'reject',
         'sep-2243-server-rejects-invalid-base64-padding',
         'ServerRejectsInvalidBase64Padding',
-        'Records whether server rejects unpadded Base64 in Mcp-Param value (informational — spec does not mandate strict decoding)',
+        'Server MUST reject Mcp-Param header with invalid Base64 padding (per SEP-2243 test-case table)',
         xMcpTool.name,
         paramName,
         'Hello',
@@ -700,16 +696,16 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         defaultHeaders
       );
 
-      // Invalid Base64 characters — INFO for the same reason as padding.
+      // Invalid Base64 characters — FAILURE for the same reason as padding.
       await this.testBase64Case(
         checks,
         serverUrl,
         baseHeaders,
         nextId,
-        'reject-info',
+        'reject',
         'sep-2243-server-rejects-invalid-base64-chars',
         'ServerRejectsInvalidBase64Chars',
-        'Records whether server rejects non-alphabet chars in Base64 Mcp-Param value (informational — spec does not mandate strict decoding)',
+        'Server MUST reject Mcp-Param header with non-alphabet Base64 characters (per SEP-2243 test-case table)',
         xMcpTool.name,
         paramName,
         'Hello',
@@ -790,7 +786,7 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
     serverUrl: string,
     baseHeaders: Record<string, string>,
     nextId: () => number,
-    expectation: 'accept' | 'reject' | 'reject-info',
+    expectation: 'accept' | 'reject',
     checkId: string,
     checkName: string,
     description: string,
@@ -844,9 +840,7 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
         );
       } else {
         // Custom-header rejection: both 400 and -32001 are MUST per
-        // §Server Behavior for Custom Headers — except the two
-        // 'reject-info' malformed-base64 probes which are observational.
-        const sev = expectation === 'reject-info' ? 'INFO' : 'FAILURE';
+        // §Server Behavior for Custom Headers.
         checks.push(
           ...createRejectionChecks(
             checkId,
@@ -855,7 +849,7 @@ export class HttpCustomHeaderServerValidationScenario implements ClientScenario 
             response,
             SPEC_REFERENCE_BASE64,
             details,
-            { statusSeverity: sev, errorCodeSeverity: sev }
+            { errorCodeSeverity: 'FAILURE' }
           )
         );
       }
